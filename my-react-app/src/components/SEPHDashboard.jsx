@@ -208,6 +208,15 @@ export default function SEPHDashboard({
   const [approvalConfirmed, setApprovalConfirmed] = useState(false);
   const [selectedView, setSelectedView] = useState("pending"); // For card-based navigation
 
+  // Multiple selection states
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [showBulkRejectModal, setShowBulkRejectModal] = useState(false);
+  const [bulkRejectRemarks, setBulkRejectRemarks] = useState("");
+  const [showBulkApproveModal, setShowBulkApproveModal] = useState(false);
+  const [bulkApproveRemarks, setBulkApproveRemarks] = useState("");
+  const [showBulkForwardModal, setShowBulkForwardModal] = useState(false);
+  const [bulkApprovedItems, setBulkApprovedItems] = useState([]);
+
   // Filter state
   const [filters, setFilters] = useState({
     crNumber: "",
@@ -260,9 +269,17 @@ export default function SEPHDashboard({
         
         // Match status or section to SEPH
         const statusLower = status.toLowerCase();
+        const sectionLower = section.toLowerCase();
+        
+        // Check if forwarded to SEPH by status
         if (statusLower.includes("forwarded to seph")) return true;
-        if (section.toLowerCase() === "seph") return true;
-        if (statusLower.startsWith("forwarded to") && section.toLowerCase() === "seph") return true;
+        
+        // Check if forwarded to SEPH by section (exact match or contains)
+        if (sectionLower === "seph" || sectionLower.includes("seph")) return true;
+        
+        // Check if status starts with "forwarded to" and section matches SEPH
+        if (statusLower.startsWith("forwarded to") && (sectionLower === "seph" || sectionLower.includes("seph"))) return true;
+        
         return false;
       }
     );
@@ -270,12 +287,13 @@ export default function SEPHDashboard({
     const approved = forwardedSubmissions.filter((s) => s.status === "SEPH Approved");
     setApprovedList(approved);
     const forwarded = forwardedSubmissions.filter((s) => {
-      const status = s.status || "";
-      const section = s.forwardedTo?.section || "";
+      const status = (s.status || "").trim();
+      const section = (s.forwardedTo?.section || "").trim();
+      const statusLower = status.toLowerCase();
+      const sectionLower = section.toLowerCase();
       return (
-        status.includes("Forwarded to ENCPH") ||
-        status.toLowerCase().includes("forwarded to encph") ||
-        section.toLowerCase().includes("encph")
+        statusLower.includes("forwarded to encph") ||
+        sectionLower.includes("encph")
       );
     });
     setForwardedList(forwarded);
@@ -698,6 +716,172 @@ export default function SEPHDashboard({
     }, 5000);
   };
 
+  // --- Multiple Selection Functions ---
+  const handleSelectItem = (itemId) => {
+    setSelectedItems((prev) => 
+      prev.includes(itemId) 
+        ? prev.filter(id => id !== itemId)
+        : [...prev, itemId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    const currentList = getListForView(selectedView);
+    const eligibleItems = currentList.filter(s => !isActionDisabled(s.status)).map(s => s.id);
+    
+    if (selectedItems.length === eligibleItems.length && eligibleItems.length > 0) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(eligibleItems);
+    }
+  };
+
+  const handleBulkApprove = () => {
+    if (selectedItems.length === 0) {
+      alert("Please select at least one item to approve.");
+      return;
+    }
+
+    // Open approval remarks modal
+    setShowBulkApproveModal(true);
+    setBulkApproveRemarks("");
+  };
+
+  const confirmBulkApprove = () => {
+    // Validate that Verification Note is filled
+    if (!bulkApproveRemarks || bulkApproveRemarks.trim() === "") {
+      alert("Please enter Verification Note before approving.");
+      return;
+    }
+
+    const count = selectedItems.length;
+
+    // First, approve the items
+    setForwardedSubmissions((prev) => {
+      return prev.map((f) => {
+        if (selectedItems.includes(f.id)) {
+          return { 
+            ...f, 
+            status: "SEPH Approved", 
+            remarks: bulkApproveRemarks,
+            // Preserve files
+            workImage: f.workImage,
+            detailedReport: f.detailedReport,
+            committeeReport: f.committeeReport,
+            councilResolution: f.councilResolution,
+          };
+        }
+        return f;
+      });
+    });
+
+    // Store the approved item IDs for forwarding
+    setBulkApprovedItems([...selectedItems]);
+    setSelectedItems([]);
+    
+    // Close approval modal
+    setShowBulkApproveModal(false);
+    setBulkApproveRemarks("");
+    
+    // Open forwarding modal
+    setShowBulkForwardModal(true);
+    setDept("");
+    setSection("");
+    setForwardRemarks("");
+    setApproveBanner(`${count} work(s) approved successfully by SEPH.`);
+    setTimeout(() => setApproveBanner(""), 3000);
+  };
+
+  const handleBulkReject = () => {
+    if (selectedItems.length === 0) {
+      alert("Please select at least one item to reject.");
+      return;
+    }
+
+    setShowBulkRejectModal(true);
+  };
+
+  const confirmBulkReject = () => {
+    if (!bulkRejectRemarks) {
+      alert("Please enter remarks before rejecting.");
+      return;
+    }
+
+    const count = selectedItems.length;
+
+    setForwardedSubmissions((prev) => {
+      return prev.map((f) => {
+        if (selectedItems.includes(f.id)) {
+          return { 
+            ...f, 
+            status: "SEPH Rejected", 
+            remarks: bulkRejectRemarks, 
+            rejectedBy: "SEPH",
+            // Preserve files
+            workImage: f.workImage,
+            detailedReport: f.detailedReport,
+            committeeReport: f.committeeReport,
+            councilResolution: f.councilResolution,
+          };
+        }
+        return f;
+      });
+    });
+
+    setSelectedItems([]);
+    setBulkRejectRemarks("");
+    setShowBulkRejectModal(false);
+    setRejectBanner(`${count} work(s) rejected and sent back to EEPH.`);
+    setTimeout(() => setRejectBanner(""), 3000);
+  };
+
+  const forwardBulkApprovedToDept = () => {
+    if (!dept || !section || bulkApprovedItems.length === 0) {
+      alert("Select department and section");
+      return;
+    }
+
+    const count = bulkApprovedItems.length;
+
+    setForwardedSubmissions((prev) => {
+      return prev.map((f) => {
+        if (bulkApprovedItems.includes(f.id)) {
+          const currentSub = prev.find((sub) => sub.id === f.id);
+          return {
+            ...f,
+            forwardedTo: {
+              department: dept,
+              section,
+            },
+            status: "Forwarded to ENCPH",
+            // Explicitly preserve all file properties
+            workImage: f.workImage || currentSub?.workImage || null,
+            detailedReport: f.detailedReport || currentSub?.detailedReport || null,
+            committeeReport: f.committeeReport || currentSub?.committeeReport || null,
+            councilResolution: f.councilResolution || currentSub?.councilResolution || null,
+          };
+        }
+        return f;
+      });
+    });
+
+    // Close modal and clear state
+    setShowBulkForwardModal(false);
+    setBulkApprovedItems([]);
+    setDept("");
+    setSection("");
+    setForwardRemarks("");
+    
+    // Show alert
+    alert("Forwarded successfully!");
+    
+    // Set banner message
+    setForwardSuccess(`✅ Successfully Forwarded ${count} Work(s) to ENCPH Department!`);
+    setTimeout(() => {
+      setForwardSuccess("");
+    }, 5000);
+  };
+
   const renderFileLinks = (sub) => {
     const files = [];
     if (sub.detailedReport)
@@ -887,14 +1071,64 @@ export default function SEPHDashboard({
             const uniqueSectors = getUniqueSectors(currentList);
             const uniqueStatuses = getUniqueStatuses(currentList);
             
+            const showActions = selectedView === "pending";
             return (
               <>
                 <h3 className="text-sm text-gray-600 mb-4">{viewTitle}</h3>
+                
+                {/* Bulk Action Buttons */}
+                {showActions && filteredList.length > 0 && (
+                  <div className="mb-3 flex gap-2 items-center">
+                    <button
+                      onClick={handleBulkApprove}
+                      disabled={selectedItems.length === 0}
+                      className={`px-4 py-2 text-xs rounded ${
+                        selectedItems.length === 0
+                          ? "bg-gray-300 cursor-not-allowed text-gray-500"
+                          : "bg-green-600 text-white hover:bg-green-700"
+                      }`}
+                    >
+                      Approve Selected ({selectedItems.length})
+                    </button>
+                    <button
+                      onClick={handleBulkReject}
+                      disabled={selectedItems.length === 0}
+                      className={`px-4 py-2 text-xs rounded ${
+                        selectedItems.length === 0
+                          ? "bg-gray-300 cursor-not-allowed text-gray-500"
+                          : "bg-red-600 text-white hover:bg-red-700"
+                      }`}
+                    >
+                      Reject Selected ({selectedItems.length})
+                    </button>
+                    {selectedItems.length > 0 && (
+                      <button
+                        onClick={() => setSelectedItems([])}
+                        className="px-3 py-2 text-xs rounded bg-gray-400 text-white hover:bg-gray-500"
+                      >
+                        Clear Selection
+                      </button>
+                    )}
+                  </div>
+                )}
                 
             <div className="overflow-auto max-h-80">
               <table className="min-w-full text-sm border-collapse border border-gray-300">
                 <thead className="bg-gray-100 border-b border-gray-300">
                   <tr>
+                          {showActions && (
+                            <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">
+                              <input
+                                type="checkbox"
+                                checked={(() => {
+                                  const eligibleItems = filteredList.filter(s => !isActionDisabled(s.status)).map(s => s.id);
+                                  return eligibleItems.length > 0 && eligibleItems.every(id => selectedItems.includes(id));
+                                })()}
+                                onChange={handleSelectAll}
+                                className="cursor-pointer"
+                              />
+                            </th>
+                          )}
                           <th className="p-2 text-left whitespace-nowrap text-xs">S.No</th>
                           <th className="p-2 text-left whitespace-nowrap text-xs">
                             <div className="flex flex-col gap-1">
@@ -1162,7 +1396,7 @@ export default function SEPHDashboard({
                         {(() => {
                           // Show "No results found" message if filteredList is empty
                           if (filteredList.length === 0) {
-                            const columnCount = selectedView === "pending" ? 16 : (selectedView === "rejected" || selectedView === "sentBackRejected") ? 16 : 15;
+                            const columnCount = showActions ? 16 : (selectedView === "rejected" || selectedView === "sentBackRejected") ? 15 : 14;
                             return (
                               <tr>
                                 <td colSpan={columnCount} className="p-8 text-center text-gray-500 text-sm">
@@ -1192,7 +1426,7 @@ export default function SEPHDashboard({
                             
                             // If no groups found, show message
                             if (crGroups.length === 0) {
-                              const columnCount = selectedView === "pending" ? 16 : (selectedView === "rejected" || selectedView === "sentBackRejected") ? 16 : 15;
+                              const columnCount = showActions ? 16 : (selectedView === "rejected" || selectedView === "sentBackRejected") ? 15 : 14;
                               return (
                                 <tr>
                                   <td colSpan={columnCount} className="p-8 text-center text-gray-500 text-sm">
@@ -1208,8 +1442,20 @@ export default function SEPHDashboard({
                               return group.map((s, idxInGroup) => {
                                 const isFirstInGroup = idxInGroup === 0;
                                 if (isFirstInGroup) globalSerial++;
+                                const canSelect = !isActionDisabled(s.status);
                                 return (
                                   <tr key={s.id} className="border-b hover:bg-gray-50">
+                                    {showActions && isFirstInGroup && (
+                                      <td className="p-2 align-top border-r border-gray-300" rowSpan={group.length}>
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedItems.includes(s.id)}
+                                          onChange={() => handleSelectItem(s.id)}
+                                          disabled={!canSelect}
+                                          className="cursor-pointer"
+                                        />
+                                      </td>
+                                    )}
                                     <td className="p-2 text-xs align-top">{isFirstInGroup ? globalSerial : ""}</td>
                                     <td className="p-2 text-xs align-top">{isFirstInGroup ? (s.crNumber || "-") : ""}</td>
                                     <td className="p-2 text-xs align-top">{isFirstInGroup ? (s.crDate || "-") : ""}</td>
@@ -1272,8 +1518,21 @@ export default function SEPHDashboard({
                             ));
                           } else {
                             // For other views (pending, forwarded, rejected, sentBackRejected), show serial number for every row
-                            return filteredList.map((s, i) => (
+                            return filteredList.map((s, i) => {
+                              const canSelect = !isActionDisabled(s.status);
+                              return (
                               <tr key={s.id} className="border-b hover:bg-gray-50">
+                                {showActions && (
+                                  <td className="p-2 align-top border-r border-gray-300">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedItems.includes(s.id)}
+                                      onChange={() => handleSelectItem(s.id)}
+                                      disabled={!canSelect}
+                                      className="cursor-pointer"
+                                    />
+                                  </td>
+                                )}
                                 <td className="p-2 text-xs align-top">{i + 1}</td>
                                 <td className="p-2 text-xs align-top">{s.crNumber || "-"}</td>
                                 <td className="p-2 text-xs align-top">{s.crDate || "-"}</td>
@@ -1336,7 +1595,8 @@ export default function SEPHDashboard({
                                   <td className="p-2 text-xs text-gray-600 max-w-xs truncate align-top" title={s.remarks || "-"}>{s.remarks || "-"}</td>
                                 )}
                               </tr>
-                            ));
+                            );
+                            });
                           }
                         })()}
                 </tbody>
@@ -1815,6 +2075,194 @@ export default function SEPHDashboard({
                     className="px-4 py-2 bg-blue-600 text-white rounded"
                   >
                     Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Bulk Approve Modal */}
+          {showBulkApproveModal && (
+            <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4">
+              <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-semibold text-lg">Approve {selectedItems.length} Selected Work(s)</h4>
+                  <button
+                    onClick={() => {
+                      setShowBulkApproveModal(false);
+                      setBulkApproveRemarks("");
+                    }}
+                    className="px-3 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">You are about to approve {selectedItems.length} work(s).</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600 font-medium">Verification Note <span className="text-red-500">*</span></label>
+                  <textarea
+                    className="w-full border p-3 rounded mt-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    rows={6}
+                    value={bulkApproveRemarks}
+                    onChange={(e) => setBulkApproveRemarks(e.target.value)}
+                    placeholder="Enter verification note (required)..."
+                    required
+                  />
+                </div>
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowBulkApproveModal(false);
+                      setBulkApproveRemarks("");
+                    }}
+                    className="px-5 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmBulkApprove}
+                    className="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  >
+                    Confirm Approval
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Bulk Reject Modal */}
+          {showBulkRejectModal && (
+            <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4">
+              <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-semibold text-lg">Reject {selectedItems.length} Selected Work(s)</h4>
+                  <button
+                    onClick={() => {
+                      setShowBulkRejectModal(false);
+                      setBulkRejectRemarks("");
+                    }}
+                    className="px-3 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">You are about to reject {selectedItems.length} work(s).</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600 font-medium">Remarks (Required)</label>
+                  <textarea
+                    className="w-full border p-3 rounded mt-2 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    rows={6}
+                    value={bulkRejectRemarks}
+                    onChange={(e) => setBulkRejectRemarks(e.target.value)}
+                    placeholder="Please enter reason for rejection (will be applied to all selected items)..."
+                    required
+                  />
+                </div>
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowBulkRejectModal(false);
+                      setBulkRejectRemarks("");
+                    }}
+                    className="px-5 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmBulkReject}
+                    className="px-5 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                  >
+                    Submit Rejection
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Bulk Forward Modal */}
+          {showBulkForwardModal && (
+            <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4">
+              <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full p-6 overflow-auto max-h-[90vh]">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-semibold text-lg">Forward {bulkApprovedItems.length} Approved Work(s) to Department</h4>
+                  <button
+                    onClick={() => {
+                      setShowBulkForwardModal(false);
+                      setBulkApprovedItems([]);
+                      setDept("");
+                      setSection("");
+                      setForwardRemarks("");
+                    }}
+                    className="px-3 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">You are about to forward {bulkApprovedItems.length} approved work(s).</p>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm text-gray-600 font-medium">Department</label>
+                    <select
+                      className="w-full border p-3 rounded mt-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      value={dept}
+                      onChange={(e) => setDept(e.target.value)}
+                    >
+                      <option value="">Select department</option>
+                      {Object.keys(sectionMap).map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-600 font-medium">Section</label>
+                    <select
+                      className="w-full border p-3 rounded mt-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      value={section}
+                      onChange={(e) => setSection(e.target.value)}
+                      disabled={!dept}
+                    >
+                      <option value="">Select section</option>
+                      {dept &&
+                        sectionMap[dept].map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+                {forwardSuccess && (
+                  <div className="mt-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded text-sm">
+                    {forwardSuccess}
+                  </div>
+                )}
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowBulkForwardModal(false);
+                      setBulkApprovedItems([]);
+                      setDept("");
+                      setSection("");
+                      setForwardRemarks("");
+                    }}
+                    className="px-5 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={forwardBulkApprovedToDept}
+                    disabled={!dept || !section}
+                    className={`px-5 py-2 rounded ${
+                      !dept || !section
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-green-600 hover:bg-green-700"
+                    } text-white`}
+                  >
+                    Forward
                   </button>
                 </div>
               </div>

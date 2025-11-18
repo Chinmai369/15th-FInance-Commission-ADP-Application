@@ -1743,7 +1743,7 @@ export default function CommissionerDashboard({
                     <option value="">Select section</option>
                     {dept &&
                       sectionMap[dept].map((s) => (
-                        <option key={s}>{s}</option>
+                        <option key={s} value={s}>{s}</option>
                       ))}
                   </select>
                 </div>
