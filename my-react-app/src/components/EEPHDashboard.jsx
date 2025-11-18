@@ -264,6 +264,7 @@ export default function EEPHDashboard({
   const [bulkApproveRemarks, setBulkApproveRemarks] = useState("");
   const [showBulkForwardModal, setShowBulkForwardModal] = useState(false);
   const [bulkApprovedItems, setBulkApprovedItems] = useState([]);
+  const [forwardConfirmed, setForwardConfirmed] = useState(false);
 
   const urlCache = useRef([]);
 
@@ -739,6 +740,7 @@ export default function EEPHDashboard({
     setDept("");
     setSection("");
     setForwardRemarks("");
+    setForwardConfirmed(false);
     setApproveBanner("Work approved successfully by EEPH.");
     setTimeout(() => setApproveBanner(""), 1500);
   };
@@ -782,6 +784,10 @@ export default function EEPHDashboard({
   const forwardApprovedToDept = () => {
     if (!dept || !section || !previewSubmission)
       return alert("Select department and section");
+    if (!forwardConfirmed) {
+      alert("Please check 'Scrutinized and Recommended' before forwarding");
+      return;
+    }
 
     setForwardedSubmissions((prev) => {
       // Get current submission from array to preserve files
@@ -813,6 +819,7 @@ export default function EEPHDashboard({
     setDept("");
     setSection("");
     setForwardRemarks("");
+    setForwardConfirmed(false);
     
     // Show alert
     alert("Forwarded successfully!");
@@ -893,6 +900,7 @@ export default function EEPHDashboard({
     
     // Open forwarding modal
     setShowBulkForwardModal(true);
+    setForwardConfirmed(false);
     setDept("");
     setSection("");
     setForwardRemarks("");
@@ -948,6 +956,10 @@ export default function EEPHDashboard({
       alert("Select department and section");
       return;
     }
+    if (!forwardConfirmed) {
+      alert("Please check 'Scrutinized and Recommended' before forwarding");
+      return;
+    }
 
     const count = bulkApprovedItems.length;
 
@@ -979,6 +991,7 @@ export default function EEPHDashboard({
     setDept("");
     setSection("");
     setForwardRemarks("");
+    setForwardConfirmed(false);
     
     // Show alert
     alert("Forwarded successfully!");
@@ -1907,6 +1920,18 @@ export default function EEPHDashboard({
                         {forwardSuccess}
                       </div>
                     )}
+                    <div className="flex items-center gap-2 mt-4">
+                      <input
+                        type="checkbox"
+                        id="forwardConfirmedEEPH"
+                        checked={forwardConfirmed}
+                        onChange={(e) => setForwardConfirmed(e.target.checked)}
+                        className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                      />
+                      <label htmlFor="forwardConfirmedEEPH" className="text-sm text-gray-700 font-medium">
+                        Scrutinized and Recommended
+                      </label>
+                    </div>
                     <div className="flex justify-end gap-3 mt-6">
                       <button
                         onClick={() => {
@@ -1917,6 +1942,7 @@ export default function EEPHDashboard({
                           setDept("");
                           setSection("");
                           setForwardRemarks("");
+                          setForwardConfirmed(false);
                         }}
                         className="px-5 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
                       >
@@ -1924,12 +1950,12 @@ export default function EEPHDashboard({
                       </button>
                       <button
                         onClick={forwardApprovedToDept}
-                        disabled={!dept || !section}
+                        disabled={!dept || !section || !forwardConfirmed}
                         className={`px-5 py-2 rounded ${
-                          !dept || !section
-                            ? "bg-gray-400 cursor-not-allowed"
-                            : "bg-green-600 hover:bg-green-700"
-                        } text-white`}
+                          !dept || !section || !forwardConfirmed
+                            ? "bg-gray-400 cursor-not-allowed text-gray-600"
+                            : "bg-green-600 hover:bg-green-700 text-white"
+                        }`}
                       >
                         Forward
                       </button>
@@ -2371,6 +2397,18 @@ export default function EEPHDashboard({
                     {forwardSuccess}
                   </div>
                 )}
+                <div className="flex items-center gap-2 mt-4">
+                  <input
+                    type="checkbox"
+                    id="bulkForwardConfirmedEEPH"
+                    checked={forwardConfirmed}
+                    onChange={(e) => setForwardConfirmed(e.target.checked)}
+                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                  />
+                  <label htmlFor="bulkForwardConfirmedEEPH" className="text-sm text-gray-700 font-medium">
+                    Scrutinized and Recommended
+                  </label>
+                </div>
                 <div className="flex justify-end gap-3 mt-6">
                   <button
                     onClick={() => {
@@ -2379,6 +2417,7 @@ export default function EEPHDashboard({
                       setDept("");
                       setSection("");
                       setForwardRemarks("");
+                      setForwardConfirmed(false);
                     }}
                     className="px-5 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
                   >
@@ -2386,12 +2425,12 @@ export default function EEPHDashboard({
                   </button>
                   <button
                     onClick={forwardBulkApprovedToDept}
-                    disabled={!dept || !section}
+                    disabled={!dept || !section || !forwardConfirmed}
                     className={`px-5 py-2 rounded ${
-                      !dept || !section
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-green-600 hover:bg-green-700"
-                    } text-white`}
+                      !dept || !section || !forwardConfirmed
+                        ? "bg-gray-400 cursor-not-allowed text-gray-600"
+                        : "bg-green-600 hover:bg-green-700 text-white"
+                    }`}
                   >
                     Forward
                   </button>

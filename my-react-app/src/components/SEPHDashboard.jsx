@@ -216,6 +216,7 @@ export default function SEPHDashboard({
   const [bulkApproveRemarks, setBulkApproveRemarks] = useState("");
   const [showBulkForwardModal, setShowBulkForwardModal] = useState(false);
   const [bulkApprovedItems, setBulkApprovedItems] = useState([]);
+  const [forwardConfirmed, setForwardConfirmed] = useState(false);
 
   // Filter state
   const [filters, setFilters] = useState({
@@ -662,6 +663,10 @@ export default function SEPHDashboard({
   const forwardApprovedToDept = () => {
     if (!dept || !section || !previewSubmission)
       return alert("Select department and section");
+    if (!forwardConfirmed) {
+      alert("Please check 'Scrutinized and Recommended' before forwarding");
+      return;
+    }
     
     setForwardedSubmissions((prev) => {
       // Get current submission from array to preserve files
