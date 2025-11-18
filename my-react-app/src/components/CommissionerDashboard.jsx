@@ -244,8 +244,11 @@ export default function CommissionerDashboard({
   const [bulkRejectRemarks, setBulkRejectRemarks] = useState("");
   const [showBulkApproveModal, setShowBulkApproveModal] = useState(false);
   const [bulkApproveRemarks, setBulkApproveRemarks] = useState("");
+  const [bulkScrutinizedConfirmed, setBulkScrutinizedConfirmed] = useState(false);
   const [approveRemarks, setApproveRemarks] = useState("");
   const [approvalConfirmed, setApprovalConfirmed] = useState(false);
+  const [scrutinizedConfirmed, setScrutinizedConfirmed] = useState(false);
+  const [forwardConfirmed, setForwardConfirmed] = useState(false);
   const [showBulkForwardModal, setShowBulkForwardModal] = useState(false);
   const [bulkApprovedItems, setBulkApprovedItems] = useState([]);
   
@@ -748,16 +751,22 @@ export default function CommissionerDashboard({
     // Close any other panels first
     setShowRejectPanel(false);
     setShowForwardPanel(false);
+    setForwardConfirmed(false);
     setModalOpen(false);
     // Open approval panel
     setPreviewSubmission(sub);
     setShowApprovePanel(true);
     setApproveRemarks("");
     setApprovalConfirmed(false);
+    setScrutinizedConfirmed(false);
   };
 
   const confirmApprove = () => {
     if (!previewSubmission) return;
+    if (!scrutinizedConfirmed) {
+      alert("Please check 'Scrutinized and Recommended' before approving");
+      return;
+    }
     
     setForwardedSubmissions((prev) => {
       const updated = prev.map((f) =>
@@ -774,6 +783,7 @@ export default function CommissionerDashboard({
     });
     // Keep popup open and show forward section
     setApprovalConfirmed(true);
+    setScrutinizedConfirmed(false); // Reset for next time
     setDept("");
     setSection("");
     setForwardRemarks("");
@@ -788,6 +798,7 @@ export default function CommissionerDashboard({
     // Close any other panels first
     setShowApprovePanel(false);
     setShowForwardPanel(false);
+    setForwardConfirmed(false);
     setModalOpen(false);
     // Open rejection panel
     setPreviewSubmission(sub);
@@ -875,9 +886,15 @@ export default function CommissionerDashboard({
     // Open approval remarks modal
     setShowBulkApproveModal(true);
     setBulkApproveRemarks("");
+    setBulkScrutinizedConfirmed(false);
   };
 
   const confirmBulkApprove = () => {
+    if (!bulkScrutinizedConfirmed) {
+      alert("Please check 'Scrutinized and Recommended' before approving");
+      return;
+    }
+    
     const count = selectedItems.length;
 
     // First, approve the items
@@ -897,12 +914,14 @@ export default function CommissionerDashboard({
     // Close approval modal
     setShowBulkApproveModal(false);
     setBulkApproveRemarks("");
+    setBulkScrutinizedConfirmed(false); // Reset for next time
     
     // Open forwarding modal
     setShowBulkForwardModal(true);
     setDept("");
     setSection("");
     setForwardRemarks("");
+    setForwardConfirmed(false);
   };
 
   const handleBulkReject = () => {
@@ -947,6 +966,10 @@ export default function CommissionerDashboard({
   const forwardApprovedToDept = () => {
     if (!dept || !section || !previewSubmission) {
       showAlert("Select department and section", "error");
+      return;
+    }
+    if (!forwardConfirmed) {
+      alert("Please check 'Scrutinized and Recommended' before forwarding");
       return;
     }
 
@@ -1050,13 +1073,18 @@ export default function CommissionerDashboard({
 
     // Close modal immediately
       setShowForwardPanel(false);
+    setForwardConfirmed(false);
     setShowApprovePanel(false);
     setApprovalConfirmed(false);
+    setForwardConfirmed(false);
       setPreviewSubmission(null);
       setDept("");
       setSection("");
       setForwardRemarks("");
     setApproveRemarks("");
+    
+    // Reset forwardConfirmed when closing
+    setForwardConfirmed(false);
     
     // Show alert
     showAlert("Forwarded successfully!", "success");
@@ -1072,6 +1100,10 @@ export default function CommissionerDashboard({
   const forwardBulkApprovedToDept = () => {
     if (!dept || !section || bulkApprovedItems.length === 0) {
       showAlert("Select department and section", "error");
+      return;
+    }
+    if (!forwardConfirmed) {
+      alert("Please check 'Scrutinized and Recommended' before forwarding");
       return;
     }
 
@@ -1101,6 +1133,7 @@ export default function CommissionerDashboard({
     setDept("");
     setSection("");
     setForwardRemarks("");
+    setForwardConfirmed(false);
     
     // Show alert
     showAlert("Forwarded successfully!", "success");
@@ -2047,10 +2080,27 @@ export default function CommissionerDashboard({
                   />
                 </div>
               </div>
+              <div className="flex items-center gap-2 mt-4">
+                <input
+                  type="checkbox"
+                  id="forwardConfirmedPanel"
+                  checked={forwardConfirmed}
+                  onChange={(e) => setForwardConfirmed(e.target.checked)}
+                  className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                />
+                <label htmlFor="forwardConfirmedPanel" className="text-sm text-gray-700 font-medium">
+                  Scrutinized and Recommended
+                </label>
+              </div>
               <div className="flex justify-end mt-4">
                 <button
                   onClick={forwardApprovedToDept}
-                  className="px-4 py-2 bg-green-600 text-white rounded"
+                  disabled={!dept || !section || !forwardConfirmed}
+                  className={`px-4 py-2 rounded ${
+                    !dept || !section || !forwardConfirmed
+                      ? "bg-gray-400 cursor-not-allowed text-gray-600"
+                      : "bg-green-600 hover:bg-green-700 text-white"
+                  }`}
                 >
                   Forward
                 </button>
@@ -2076,6 +2126,8 @@ export default function CommissionerDashboard({
                       setShowApprovePanel(false);
                       setApproveRemarks("");
                       setApprovalConfirmed(false);
+                      setScrutinizedConfirmed(false);
+                      setForwardConfirmed(false);
                       setPreviewSubmission(null);
                       setDept("");
                       setSection("");
@@ -2108,12 +2160,25 @@ export default function CommissionerDashboard({
                         placeholder="Enter remarks for approval (optional)..."
                       />
                     </div>
+                    <div className="flex items-center gap-2 mt-4">
+                      <input
+                        type="checkbox"
+                        id="scrutinizedConfirmed"
+                        checked={scrutinizedConfirmed}
+                        onChange={(e) => setScrutinizedConfirmed(e.target.checked)}
+                        className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                      />
+                      <label htmlFor="scrutinizedConfirmed" className="text-sm text-gray-700 font-medium">
+                        Scrutinized and Recommended
+                      </label>
+                    </div>
                     <div className="flex justify-end gap-3 mt-6">
                       <button
                         onClick={() => {
                           setShowApprovePanel(false);
                           setApproveRemarks("");
                           setApprovalConfirmed(false);
+                          setScrutinizedConfirmed(false);
                           setPreviewSubmission(null);
                         }}
                         className="px-5 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
@@ -2122,7 +2187,12 @@ export default function CommissionerDashboard({
                       </button>
                       <button
                         onClick={confirmApprove}
-                        className="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                        disabled={!scrutinizedConfirmed}
+                        className={`px-5 py-2 rounded ${
+                          !scrutinizedConfirmed
+                            ? "bg-gray-400 cursor-not-allowed text-gray-600"
+                            : "bg-green-600 hover:bg-green-700 text-white"
+                        }`}
                       >
                         Confirm Approval
                       </button>
@@ -2174,6 +2244,18 @@ export default function CommissionerDashboard({
                           placeholder="Enter remarks for forwarding (optional)..."
                         />
                       </div>
+                      <div className="flex items-center gap-2 mt-4">
+                        <input
+                          type="checkbox"
+                          id="forwardConfirmed"
+                          checked={forwardConfirmed}
+                          onChange={(e) => setForwardConfirmed(e.target.checked)}
+                          className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                        />
+                        <label htmlFor="forwardConfirmed" className="text-sm text-gray-700 font-medium">
+                          Scrutinized and Recommended
+                        </label>
+                      </div>
                     </div>
                     {forwardSuccess && (
                       <div className="mt-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded text-sm">
@@ -2186,6 +2268,7 @@ export default function CommissionerDashboard({
                           setShowApprovePanel(false);
                           setApproveRemarks("");
                           setApprovalConfirmed(false);
+                          setForwardConfirmed(false);
                           setPreviewSubmission(null);
                           setDept("");
                           setSection("");
@@ -2197,9 +2280,9 @@ export default function CommissionerDashboard({
                       </button>
                       <button
                         onClick={forwardApprovedToDept}
-                        disabled={!dept || !section}
+                        disabled={!dept || !section || !forwardConfirmed}
                         className={`px-5 py-2 rounded ${
-                          !dept || !section
+                          !dept || !section || !forwardConfirmed
                             ? "bg-gray-400 cursor-not-allowed"
                             : "bg-green-600 hover:bg-green-700"
                         } text-white`}
@@ -2300,11 +2383,24 @@ export default function CommissionerDashboard({
                     placeholder="Enter remarks for approval (optional)..."
                   />
                 </div>
+                <div className="flex items-center gap-2 mt-4">
+                  <input
+                    type="checkbox"
+                    id="bulkScrutinizedConfirmed"
+                    checked={bulkScrutinizedConfirmed}
+                    onChange={(e) => setBulkScrutinizedConfirmed(e.target.checked)}
+                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                  />
+                  <label htmlFor="bulkScrutinizedConfirmed" className="text-sm text-gray-700 font-medium">
+                    Scrutinized and Recommended
+                  </label>
+                </div>
                 <div className="flex justify-end gap-3 mt-6">
                   <button
                     onClick={() => {
                       setShowBulkApproveModal(false);
                       setBulkApproveRemarks("");
+                      setBulkScrutinizedConfirmed(false);
                     }}
                     className="px-5 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
                   >
@@ -2312,7 +2408,12 @@ export default function CommissionerDashboard({
                   </button>
                   <button
                     onClick={confirmBulkApprove}
-                    className="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    disabled={!bulkScrutinizedConfirmed}
+                    className={`px-5 py-2 rounded ${
+                      !bulkScrutinizedConfirmed
+                        ? "bg-gray-400 cursor-not-allowed text-gray-600"
+                        : "bg-green-600 hover:bg-green-700 text-white"
+                    }`}
                   >
                     Confirm Approval
                   </button>
@@ -2433,6 +2534,18 @@ export default function CommissionerDashboard({
                       placeholder="Enter remarks for forwarding (optional)..."
                     />
                   </div>
+                  <div className="flex items-center gap-2 mt-4">
+                    <input
+                      type="checkbox"
+                      id="bulkForwardConfirmed"
+                      checked={forwardConfirmed}
+                      onChange={(e) => setForwardConfirmed(e.target.checked)}
+                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                    />
+                    <label htmlFor="bulkForwardConfirmed" className="text-sm text-gray-700 font-medium">
+                      Scrutinized and Recommended
+                    </label>
+                  </div>
                 </div>
                 <div className="flex justify-end gap-3 mt-6">
                   <button
@@ -2442,6 +2555,7 @@ export default function CommissionerDashboard({
                       setDept("");
                       setSection("");
                       setForwardRemarks("");
+                      setForwardConfirmed(false);
                     }}
                     className="px-5 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
                   >
@@ -2449,12 +2563,12 @@ export default function CommissionerDashboard({
                   </button>
                   <button
                     onClick={forwardBulkApprovedToDept}
-                    disabled={!dept || !section}
+                    disabled={!dept || !section || !forwardConfirmed}
                     className={`px-5 py-2 rounded ${
-                      !dept || !section
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-green-600 hover:bg-green-700"
-                    } text-white`}
+                      !dept || !section || !forwardConfirmed
+                        ? "bg-gray-400 cursor-not-allowed text-gray-600"
+                        : "bg-green-600 hover:bg-green-700 text-white"
+                    }`}
                   >
                     Forward
                   </button>
