@@ -316,6 +316,21 @@ export default function EEPHDashboard({
 
   // Calculate lists using useMemo
   const pendingList = useMemo(() => {
+    console.log("🔍 EEPH - Starting filter with", forwardedSubmissions.length, "total submissions");
+    
+    // Log all submissions for debugging
+    forwardedSubmissions.forEach((s, idx) => {
+      const status = (s.status || "").trim();
+      const section = (s.forwardedTo?.section || "").trim();
+      console.log(`📋 EEPH - Submission ${idx + 1}:`, {
+        id: s.id,
+        status,
+        section,
+        forwardedTo: s.forwardedTo,
+        proposal: s.proposal?.substring(0, 50) || "N/A"
+      });
+    });
+    
     const filtered = forwardedSubmissions.filter(
       (s) => {
         const status = (s.status || "").trim();
@@ -325,39 +340,42 @@ export default function EEPHDashboard({
         
         // Exclude already processed tasks by EEPH
         if (status === "EEPH Approved" || status === "EEPH Rejected") {
+          console.log(`❌ EEPH Filter - EXCLUDED (already processed):`, { id: s.id, status });
           return false;
         }
         
         // Exclude tasks already forwarded to SEPH
         if (statusLower.includes("forwarded to seph") || status === "SEPH Approved" || status === "SEPH Rejected") {
+          console.log(`❌ EEPH Filter - EXCLUDED (forwarded to SEPH):`, { id: s.id, status });
           return false;
         }
         
         // Check if task is forwarded to EEPH
         // Match if:
-        // 1. Status contains "forwarded to eeph" (case-insensitive)
-        // 2. Section is "eeph" or contains "eeph" (case-insensitive)
-        // 3. Status starts with "forwarded to" AND section contains "eeph"
+        // 1. Status contains "forwarded to eeph" (case-insensitive) - PRIMARY MATCH
+        // 2. Section is exactly "eeph" (case-insensitive) - SECONDARY MATCH
+        // 3. Section contains "eeph" (case-insensitive) - TERTIARY MATCH
+        // 4. Status starts with "forwarded to" AND section contains "eeph" - FALLBACK MATCH
         const hasForwardedToEephInStatus = statusLower.includes("forwarded to eeph");
-        const hasSectionEeph = sectionLower === "eeph" || sectionLower.includes("eeph");
-        const hasForwardedToWithEephSection = statusLower.startsWith("forwarded to") && (sectionLower === "eeph" || sectionLower.includes("eeph"));
-        const isForwardedToEEPH = hasForwardedToEephInStatus || hasSectionEeph || hasForwardedToWithEephSection;
+        const hasSectionEephExact = sectionLower === "eeph";
+        const hasSectionEephContains = sectionLower.includes("eeph") && sectionLower.length > 0;
+        const hasForwardedToWithEephSection = statusLower.startsWith("forwarded to") && (sectionLower === "eeph" || (sectionLower.includes("eeph") && sectionLower.length > 0));
+        const isForwardedToEEPH = hasForwardedToEephInStatus || hasSectionEephExact || hasSectionEephContains || hasForwardedToWithEephSection;
         
-        // Debug logging for troubleshooting
-        if (statusLower.includes("forwarded") || sectionLower.includes("eeph")) {
-          console.log("🔍 EEPH Filter Check:", {
-            id: s.id,
-            status,
-            section,
-            statusLower,
-            sectionLower,
-            hasForwardedToEephInStatus,
-            hasSectionEeph,
-            hasForwardedToWithEephSection,
-            isForwardedToEEPH,
-            forwardedTo: s.forwardedTo
-          });
-        }
+        // Debug logging for ALL submissions (not just forwarded ones)
+        console.log("🔍 EEPH Filter Check:", {
+          id: s.id,
+          status,
+          section,
+          statusLower,
+          sectionLower,
+          hasForwardedToEephInStatus,
+          hasSectionEephExact,
+          hasSectionEephContains,
+          hasForwardedToWithEephSection,
+          isForwardedToEEPH,
+          forwardedTo: s.forwardedTo
+        });
         
         // If it's forwarded to EEPH, it should be pending
         if (isForwardedToEEPH) {
@@ -369,10 +387,16 @@ export default function EEPHDashboard({
       }
     );
     
-    console.log("📊 EEPH Pending List:", {
+    console.log("📊 EEPH Pending List Result:", {
       totalSubmissions: forwardedSubmissions.length,
       pendingCount: filtered.length,
-      pendingIds: filtered.map(s => s.id)
+      pendingIds: filtered.map(s => s.id),
+      pendingDetails: filtered.map(s => ({
+        id: s.id,
+        status: s.status,
+        section: s.forwardedTo?.section,
+        proposal: s.proposal?.substring(0, 50) || "N/A"
+      }))
     });
     
     return filtered;
