@@ -2173,17 +2173,20 @@ export default function AdminDashboard({
                       }
 
                       if (selectedView === "noOfCrs") {
-                        // Group by CR number for CR view
-                        const groupedByCR = {};
+                        // Group by CR number AND sector for CR view
+                        const groupedByCRAndSector = {};
                         filteredList.forEach((s) => {
                           const crKey = (s.crNumber || "").trim().toUpperCase() || "__NO_CR__";
-                          if (!groupedByCR[crKey]) {
-                            groupedByCR[crKey] = [];
+                          const sectorKey = (s.sector || "").trim() || "__NO_SECTOR__";
+                          // Create composite key: CR + Sector
+                          const compositeKey = `${crKey}|||${sectorKey}`;
+                          if (!groupedByCRAndSector[compositeKey]) {
+                            groupedByCRAndSector[compositeKey] = [];
                           }
-                          groupedByCR[crKey].push(s);
+                          groupedByCRAndSector[compositeKey].push(s);
                         });
                         
-                        const crGroups = Object.values(groupedByCR).filter(group => {
+                        const crGroups = Object.values(groupedByCRAndSector).filter(group => {
                           // Filter out groups with __NO_CR__ key
                           const firstItem = group[0];
                           const crKey = (firstItem.crNumber || "").trim().toUpperCase() || "__NO_CR__";
@@ -2205,6 +2208,9 @@ export default function AdminDashboard({
                         let globalSerial = 0;
                         
                         return crGroups.map((group) => {
+                          const groupSize = group.length;
+                          const sectorName = group[0].sector || ""; // Get sector from first item (all should be same)
+                          
                           return group.map((s, idxInGroup) => {
                             const isFirstInGroup = idxInGroup === 0;
                             if (isFirstInGroup) globalSerial++;
@@ -2213,7 +2219,18 @@ export default function AdminDashboard({
                                 <td className="p-2 align-top border-r border-gray-300">{isFirstInGroup ? globalSerial : ""}</td>
                                 <td className="p-2 align-top border-r border-gray-300">{isFirstInGroup ? (s.crNumber || "-") : ""}</td>
                                 <td className="p-2 align-top border-r border-gray-300">{isFirstInGroup ? (s.crDate || "-") : ""}</td>
-                                <td className="p-2 align-top border-r border-gray-300">{isFirstInGroup ? s.sector : ""}</td>
+                                {isFirstInGroup ? (
+                                  <td 
+                                    className="p-2 border-r border-gray-300" 
+                                    rowSpan={groupSize} 
+                                    style={{ 
+                                      verticalAlign: 'middle',
+                                      textAlign: 'center'
+                                    }}
+                                  >
+                                    {sectorName}
+                                  </td>
+                                ) : null}
                                 <td className="p-2 max-w-xs truncate align-top border-r border-gray-300" title={s.proposal}>{s.proposal}</td>
                                 <td className="p-2 text-right align-top border-r border-gray-300">{fmtINR(Math.round(s.cost || 0))}</td>
                                 <td className="p-2 max-w-xs truncate align-top border-r border-gray-300" title={formatLocality(s)}>{formatLocality(s)}</td>

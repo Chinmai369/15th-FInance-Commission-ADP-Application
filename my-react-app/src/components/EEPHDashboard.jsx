@@ -1623,18 +1623,21 @@ export default function EEPHDashboard({
                             });
                           }
                           
-                          // For other views (like "noOfCrs", "approved"), group by CR number (case-insensitive, trimmed)
-                          const groupedByCR = {};
+                          // For other views (like "noOfCrs", "approved"), group by CR number AND sector (case-insensitive, trimmed)
+                          const groupedByCRAndSector = {};
                           filteredList.forEach((s) => {
                             const crKey = (s.crNumber || "").trim().toUpperCase() || "__NO_CR__";
-                            if (!groupedByCR[crKey]) {
-                              groupedByCR[crKey] = [];
+                            const sectorKey = (s.sector || "").trim() || "__NO_SECTOR__";
+                            // Create composite key: CR + Sector
+                            const compositeKey = `${crKey}|||${sectorKey}`;
+                            if (!groupedByCRAndSector[compositeKey]) {
+                              groupedByCRAndSector[compositeKey] = [];
                             }
-                            groupedByCR[crKey].push(s);
+                            groupedByCRAndSector[compositeKey].push(s);
                           });
                           
                           // Filter out groups with __NO_CR__ key (same as card count logic)
-                          const crGroups = Object.values(groupedByCR).filter(group => {
+                          const crGroups = Object.values(groupedByCRAndSector).filter(group => {
                             const firstItem = group[0];
                             const crKey = (firstItem.crNumber || "").trim().toUpperCase() || "__NO_CR__";
                             return crKey !== "__NO_CR__";
