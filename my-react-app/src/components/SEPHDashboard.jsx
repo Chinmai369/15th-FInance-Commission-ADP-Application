@@ -694,19 +694,15 @@ export default function SEPHDashboard({
 
   // --- Forward ---
   const forwardApprovedToDept = () => {
-<<<<<<< HEAD
     if (!dept || !section || !previewSubmission) {
       showAlert("Select department and section", "error");
-=======
-    if (!dept || !section || !previewSubmission)
-      return alert("Select department and section");
-    if (!forwardConfirmed) {
-      alert("Please check 'Scrutinized and Recommended' before forwarding");
->>>>>>> 32656e02669e1a47ec3adbeee497d1f74d2324bb
       return;
     }
-    
-    setForwardedSubmissions((prev) => {
+    if (!forwardConfirmed) {
+      showAlert("Please check 'Scrutinized and Recommended' before forwarding", "error");
+      return;
+    }
+     setForwardedSubmissions((prev) => {
       // Get current submission from array to preserve files
       const currentSub = prev.find((f) => f.id === previewSubmission.id);
       
