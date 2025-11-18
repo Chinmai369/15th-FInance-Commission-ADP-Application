@@ -930,10 +930,16 @@ export default function SEPHDashboard({
         <Header
           title="15th Finance Commission"
           user={user}
-          onLogout={() => {
+          onLogout={(e) => {
+            if (e) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
             const confirmed = window.confirm("Are you sure you want to logout?");
             if (confirmed) {
-              logout?.();
+              if (logout) {
+                logout();
+              }
               window.location.href = "/";
             }
           }}

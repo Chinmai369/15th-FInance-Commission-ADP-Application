@@ -860,6 +860,12 @@ export default function AdminDashboard({
       );
     
       console.log("📤 Admin: Forwarded submissions prepared:", forwarded.length);
+      console.log("📤 Admin: Forwarded submissions details:", forwarded.map(f => ({
+        id: f.id,
+        status: f.status,
+        statusType: typeof f.status,
+        proposal: f.proposal?.substring(0, 30) || 'N/A'
+      })));
       console.log("📤 Admin: Updating forwardedSubmissions state...");
       
       // Update the shared state via prop
@@ -870,7 +876,8 @@ export default function AdminDashboard({
           previousCount: fs?.length || 0,
           newSubmissions: forwarded.length,
           totalAfterAdd: updated.length,
-          newSubmissionIds: forwarded.map(f => ({ id: f.id, proposal: f.proposal?.substring(0, 30) || 'N/A' }))
+          newSubmissionIds: forwarded.map(f => ({ id: f.id, status: f.status, proposal: f.proposal?.substring(0, 30) || 'N/A' })),
+          allStatuses: updated.map(u => ({ id: u.id, status: u.status }))
         });
         return updated;
       });

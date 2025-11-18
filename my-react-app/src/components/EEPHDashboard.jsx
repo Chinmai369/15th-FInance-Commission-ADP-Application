@@ -314,6 +314,16 @@ export default function EEPHDashboard({
     }
   }, [location.pathname, logout]);
 
+  // Log when forwardedSubmissions prop changes
+  useEffect(() => {
+    console.log("🔄 EEPH: forwardedSubmissions prop changed");
+    console.log("   - Count:", forwardedSubmissions?.length || 0);
+    console.log("   - All submissions:");
+    (forwardedSubmissions || []).forEach((s, idx) => {
+      console.log(`      ${idx + 1}. ID: ${s.id}, Status: "${s.status}", Section: "${s.forwardedTo?.section || 'none'}", Proposal: ${(s.proposal || 'N/A').substring(0, 40)}`);
+    });
+  }, [forwardedSubmissions]);
+
   // Calculate lists using useMemo
   const pendingList = useMemo(() => {
     console.log("🔍 EEPH - Starting filter with", forwardedSubmissions.length, "total submissions");
@@ -429,10 +439,13 @@ export default function EEPHDashboard({
 
   // Helper functions for view
   const getListForView = (view) => {
+    console.log("🔍 EEPH: getListForView called with view:", view);
+    console.log("   - pendingList length:", pendingList.length);
     let list = [];
     switch (view) {
       case "pending":
         list = pendingList;
+        console.log("   - Returning pendingList, count:", list.length);
         break;
       case "allWorks":
         list = forwardedSubmissions.filter(s => {
@@ -512,7 +525,10 @@ export default function EEPHDashboard({
 
   // Filter function to apply filters to list
   const applyFilters = (list) => {
-    return list.filter((item) => {
+    console.log("🔍 EEPH: applyFilters called");
+    console.log("   - Input list count:", list.length);
+    console.log("   - Active filters:", JSON.stringify(filters));
+    const filtered = list.filter((item) => {
       // CR Number filter
       if (filters.crNumber && !(item.crNumber || "").toLowerCase().includes(filters.crNumber.toLowerCase())) {
         return false;
@@ -556,6 +572,8 @@ export default function EEPHDashboard({
       }
       return true;
     });
+    console.log("   - Output filtered count:", filtered.length);
+    return filtered;
   };
 
   // Get unique sectors and statuses for filter dropdowns
@@ -1020,10 +1038,16 @@ export default function EEPHDashboard({
         <Header
           title="15th Finance Commission"
           user={user}
-          onLogout={() => {
+          onLogout={(e) => {
+            if (e) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
             const confirmed = window.confirm("Are you sure you want to logout?");
             if (confirmed) {
-              logout?.();
+              if (logout) {
+                logout();
+              }
               window.location.href = "/";
             }
           }}
@@ -1162,7 +1186,17 @@ export default function EEPHDashboard({
           {/* Dynamic Table based on selected view */}
           {(() => {
             const currentList = getListForView(selectedView);
+            console.log("🔍 EEPH: Rendering table", {
+              selectedView,
+              currentListCount: currentList.length,
+              currentListStatuses: currentList.map(s => s.status),
+              activeFilters: filters
+            });
             const filteredList = applyFilters(currentList);
+            console.log("🔍 EEPH: After applyFilters", {
+              filteredListCount: filteredList.length,
+              filteredListStatuses: filteredList.map(s => s.status)
+            });
             const showActions = selectedView === "pending";
             const uniqueSectors = getUniqueSectors(currentList);
             const uniqueStatuses = getUniqueStatuses(currentList);

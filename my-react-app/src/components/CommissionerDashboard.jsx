@@ -9,6 +9,12 @@ export default function CommissionerDashboard({
   forwardedSubmissions,
   setForwardedSubmissions,
 }) {
+  // Log when component mounts or props change
+  console.log("🔍 Commissioner: Component render/update");
+  console.log("   - forwardedSubmissions prop:", forwardedSubmissions);
+  console.log("   - forwardedSubmissions length:", forwardedSubmissions?.length || 0);
+  console.log("   - forwardedSubmissions type:", typeof forwardedSubmissions);
+  console.log("   - forwardedSubmissions is array:", Array.isArray(forwardedSubmissions));
   const fmtINR = (n) =>
     new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -315,30 +321,102 @@ export default function CommissionerDashboard({
     return () => window.removeEventListener("popstate", handler);
   }, [location.pathname, logout, navigate]);
 
+  // Log when forwardedSubmissions prop changes
+  useEffect(() => {
+    console.log("🔄 Commissioner: forwardedSubmissions prop changed");
+    console.log("   - Count:", forwardedSubmissions?.length || 0);
+    console.log("   - All submissions:");
+    (forwardedSubmissions || []).forEach((s, idx) => {
+      console.log(`      ${idx + 1}. ID: ${s.id}, Status: "${s.status}", Proposal: ${(s.proposal || 'N/A').substring(0, 40)}`);
+    });
+  }, [forwardedSubmissions]);
+
   // --- Calculate lists using useMemo for reactive updates ---
   const pendingList = useMemo(() => {
-    // Pending list: excludes Commissioner rejected works (they have their own card)
+    console.log("🔍 Commissioner: Starting pendingList calculation");
+    console.log("   - forwardedSubmissions type:", typeof forwardedSubmissions);
+    console.log("   - forwardedSubmissions is array:", Array.isArray(forwardedSubmissions));
+    console.log("   - Total forwardedSubmissions:", forwardedSubmissions?.length || 0);
+    
+    // Safety check: ensure forwardedSubmissions is an array
+    if (!forwardedSubmissions || !Array.isArray(forwardedSubmissions)) {
+      console.log("   ⚠️ WARNING: forwardedSubmissions is not an array, returning empty list");
+      return [];
+    }
+    
+    // Log all submissions with their statuses
+    forwardedSubmissions.forEach((s, idx) => {
+      console.log(`   - Submission ${idx + 1}:`, {
+        id: s.id,
+        status: s.status,
+        statusType: typeof s.status,
+        statusLength: s.status?.length,
+        proposal: s.proposal?.substring(0, 50) || "N/A"
+      });
+    });
+    
+    // Pending list: includes works with "Pending Review" status and excludes processed works
     const pending = forwardedSubmissions.filter(
       (s) => {
+        const status = (s.status || "").trim();
+        const statusLower = status.toLowerCase();
+        
+        console.log("🔍 Commissioner: Filtering submission:", {
+          id: s.id,
+          originalStatus: s.status,
+          trimmedStatus: status,
+          statusLower: statusLower
+        });
+        
+        // Include works with "Pending Review" status (from Admin)
+        if (status === "Pending Review") {
+          console.log("   ✅ INCLUDED: Status is 'Pending Review'");
+          return true;
+        }
+        
+        // Also check case-insensitive match
+        if (statusLower === "pending review") {
+          console.log("   ✅ INCLUDED: Status is 'pending review' (case-insensitive)");
+          return true;
+        }
+        
         // Exclude Commissioner rejected works from pending
-        if (s.status === "Rejected") {
+        if (status === "Rejected") {
           // Exclude if rejected by Commissioner
           const isCommissionerRejected = !s.rejectedBy || 
                                          s.rejectedBy === "Commissioner" || 
                                          s.rejectedBy === user?.username ||
                                          s.rejectedBy === "Ramesh";
+          console.log("   ❌ EXCLUDED: Status is 'Rejected', isCommissionerRejected:", isCommissionerRejected);
           return !isCommissionerRejected;
         }
+        
         // Exclude other processed statuses
-        return !["Approved", "EEPH Rejected", "SEPH Rejected", "ENCPH Rejected"].includes(s.status) &&
-               !s.status?.startsWith("Forwarded to");
+        const isProcessed = ["Approved", "EEPH Rejected", "SEPH Rejected", "ENCPH Rejected"].includes(status) ||
+                           status.startsWith("Forwarded to");
+        if (isProcessed) {
+          console.log("   ❌ EXCLUDED: Status is processed:", status);
+        } else {
+          console.log("   ✅ INCLUDED: Status is not processed");
+        }
+        return !isProcessed;
       }
     );
-    console.log("📊 Pending list recalculated:", {
-      totalSubmissions: forwardedSubmissions.length,
-      pendingCount: pending.length,
-      rejectedItems: forwardedSubmissions.filter(s => s.status === "Rejected" && s.rejectedBy === "Commissioner").length
+    
+    const pendingReviewCount = forwardedSubmissions.filter(s => {
+      const status = (s.status || "").trim();
+      return status === "Pending Review" || status.toLowerCase() === "pending review";
+    }).length;
+    
+    console.log("📊 Commissioner Pending list recalculated:");
+    console.log("   - Total submissions:", forwardedSubmissions.length);
+    console.log("   - Pending count:", pending.length);
+    console.log("   - Pending Review count:", pendingReviewCount);
+    console.log("   - Pending details:");
+    pending.forEach((s, idx) => {
+      console.log(`      ${idx + 1}. ID: ${s.id}, Status: "${s.status}", Proposal: ${(s.proposal || 'N/A').substring(0, 40)}`);
     });
+    
     return pending;
   }, [forwardedSubmissions, user]);
 
@@ -391,10 +469,13 @@ export default function CommissionerDashboard({
 
   // Helper function to get the list for selected view
   const getListForView = (view) => {
+    console.log("🔍 Commissioner: getListForView called with view:", view);
+    console.log("   - pendingList length:", pendingList.length);
     let list = [];
     switch (view) {
       case "pending":
         list = pendingList;
+        console.log("   - Returning pendingList, count:", list.length);
         break;
       case "allWorks":
         list = forwardedSubmissions;
@@ -462,7 +543,10 @@ export default function CommissionerDashboard({
 
   // Filter function to apply filters to list
   const applyFilters = (list) => {
-    return list.filter((item) => {
+    console.log("🔍 Commissioner: applyFilters called");
+    console.log("   - Input list count:", list.length);
+    console.log("   - Active filters:", JSON.stringify(filters));
+    const filtered = list.filter((item) => {
       // CR Number filter
       if (filters.crNumber && !(item.crNumber || "").toLowerCase().includes(filters.crNumber.toLowerCase())) {
         return false;
@@ -506,6 +590,8 @@ export default function CommissionerDashboard({
       }
       return true;
     });
+    console.log("   - Output filtered count:", filtered.length);
+    return filtered;
   };
 
   // Get unique sectors and statuses for filter dropdowns
@@ -803,8 +889,17 @@ export default function CommissionerDashboard({
     });
 
     setForwardedSubmissions((prev) => {
+      console.log("📤 Commissioner: setForwardedSubmissions callback called");
+      console.log("   - Previous count:", prev.length);
+      console.log("   - Preview submission ID:", previewSubmission.id);
+      console.log("   - New status:", newStatus);
+      console.log("   - Section:", section);
+      console.log("   - Department:", dept);
+      
       // Get current submission from array
       const currentSub = prev.find((f) => f.id === previewSubmission.id);
+      console.log("   - Current submission found:", !!currentSub);
+      console.log("   - Current submission status:", currentSub?.status);
       
       // Log files before forwarding
       console.log("📤 Commissioner forwarding - Files check:", {
@@ -859,6 +954,9 @@ export default function CommissionerDashboard({
         willAppearInEEPH: forwardedSub?.status?.toLowerCase().includes("forwarded to eeph") || 
                          forwardedSub?.forwardedTo?.section?.toLowerCase() === "eeph"
       });
+      
+      console.log("✅ Commissioner: Updated array count:", updated.length);
+      console.log("   - All statuses in updated array:", updated.map(u => ({ id: u.id, status: u.status, section: u.forwardedTo?.section })));
       
       return updated;
     });
@@ -1003,6 +1101,18 @@ export default function CommissionerDashboard({
           <h2 className="font-semibold text-gray-700 mb-4">
             Commissioner Dashboard
           </h2>
+          
+          {/* Debug Info */}
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs">
+            <strong>Debug Info:</strong> forwardedSubmissions count: {forwardedSubmissions?.length || 0} | 
+            pendingList count: {pendingList.length} | 
+            selectedView: {selectedView}
+            {forwardedSubmissions && forwardedSubmissions.length > 0 && (
+              <div className="mt-2">
+                Statuses: {forwardedSubmissions.map(s => s.status).join(", ")}
+              </div>
+            )}
+          </div>
 
           {/* Statistics Cards */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
@@ -1098,7 +1208,16 @@ export default function CommissionerDashboard({
           {/* Dynamic Table based on selected view */}
           {(() => {
             const currentList = getListForView(selectedView);
+            console.log("🔍 Commissioner: Rendering table");
+            console.log("   - selectedView:", selectedView);
+            console.log("   - currentListCount:", currentList.length);
+            console.log("   - currentListStatuses:", currentList.map(s => s.status).join(", "));
+            console.log("   - activeFilters:", JSON.stringify(filters));
             const filteredList = applyFilters(currentList);
+            console.log("🔍 Commissioner: After applyFilters");
+            console.log("   - filteredListCount:", filteredList.length);
+            console.log("   - filteredListStatuses:", filteredList.map(s => s.status).join(", "));
+            console.log("   - filteredListIds:", filteredList.map(s => s.id).join(", "));
             const showActions = selectedView === "pending";
             const uniqueSectors = getUniqueSectors(currentList);
             const uniqueStatuses = getUniqueStatuses(currentList);
