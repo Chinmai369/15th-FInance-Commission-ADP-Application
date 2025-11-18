@@ -199,6 +199,23 @@ export default function SEPHDashboard({
   const [dept, setDept] = useState("");
   const [section, setSection] = useState("");
   const [forwardRemarks, setForwardRemarks] = useState("");
+
+  // Logout modal state
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [logoutCallback, setLogoutCallback] = useState(null);
+  
+  // Alert modal state
+  const [alertModal, setAlertModal] = useState({ show: false, message: "", type: "info" });
+  
+  // Function to show custom alert
+  const showAlert = (message, type = "info") => {
+    setAlertModal({ show: true, message, type });
+  };
+  
+  // Function to close alert
+  const closeAlert = () => {
+    setAlertModal({ show: false, message: "", type: "info" });
+  };
   const [forwardSuccess, setForwardSuccess] = useState("");
 
   const [showRejectPanel, setShowRejectPanel] = useState(false);
@@ -462,18 +479,36 @@ export default function SEPHDashboard({
     }
   }, [location.pathname]);
 
+  // Helper function to show logout confirmation modal
+  const showLogoutConfirmation = (callback) => {
+    setLogoutCallback(() => callback);
+    setShowLogoutModal(true);
+  };
+
+  // Handle logout confirmation
+  const handleLogoutConfirm = () => {
+    setShowLogoutModal(false);
+    if (logoutCallback) {
+      logoutCallback();
+      setLogoutCallback(null);
+    }
+  };
+
+  // Handle logout cancel
+  const handleLogoutCancel = () => {
+    setShowLogoutModal(false);
+    setLogoutCallback(null);
+  };
+
   // Intercept back navigation reliably
   useEffect(() => {
     const handler = (event) => {
       if (location.pathname !== "/") {
-        const confirmed = window.confirm("Are you sure you want to logout?");
-        if (confirmed) {
+        showLogoutConfirmation(() => {
           logout?.();
           navigate("/", { replace: true });
-        } else {
-          // Push again to prevent leaving
-          window.history.pushState(null, "", window.location.pathname);
-        }
+        });
+        window.history.pushState(null, "", window.location.pathname);
       }
     };
     window.addEventListener("popstate", handler);
@@ -487,12 +522,10 @@ export default function SEPHDashboard({
       window.history.state &&
       document.referrer && !document.referrer.includes("/login")
     ) {
-      const confirmed = window.confirm("Are you sure you want to logout?");
-      if (!confirmed) {
-        window.history.go(1);
-      } else {
+      showLogoutConfirmation(() => {
         logout?.();
-      }
+      });
+      window.history.go(1);
     }
   }, [location.pathname, logout]);
 
@@ -597,7 +630,7 @@ export default function SEPHDashboard({
     
     // Validate that Verification Note is filled
     if (!approveRemarks || approveRemarks.trim() === "") {
-      alert("Please enter Verification Note before approving.");
+      showAlert("Please enter Verification Note before approving.", "error");
       return;
     }
     
@@ -638,7 +671,7 @@ export default function SEPHDashboard({
 
   const confirmReject = () => {
     if (!rejectRemarks || !previewSubmission) {
-      alert("Please enter remarks before rejecting.");
+      showAlert("Please enter remarks before rejecting.", "error");
       return;
     }
 
@@ -660,8 +693,10 @@ export default function SEPHDashboard({
 
   // --- Forward ---
   const forwardApprovedToDept = () => {
-    if (!dept || !section || !previewSubmission)
-      return alert("Select department and section");
+    if (!dept || !section || !previewSubmission) {
+      showAlert("Select department and section", "error");
+      return;
+    }
     
     setForwardedSubmissions((prev) => {
       // Get current submission from array to preserve files
@@ -707,7 +742,7 @@ export default function SEPHDashboard({
     setForwardRemarks("");
     
     // Show alert
-    alert("Forwarded successfully!");
+    showAlert("Forwarded successfully!", "success");
     
     // Set banner message
     setForwardSuccess("✅ Successfully Forwarded to ENCPH Department!");
@@ -738,7 +773,7 @@ export default function SEPHDashboard({
 
   const handleBulkApprove = () => {
     if (selectedItems.length === 0) {
-      alert("Please select at least one item to approve.");
+      showAlert("Please select at least one item to approve.", "error");
       return;
     }
 
@@ -750,7 +785,7 @@ export default function SEPHDashboard({
   const confirmBulkApprove = () => {
     // Validate that Verification Note is filled
     if (!bulkApproveRemarks || bulkApproveRemarks.trim() === "") {
-      alert("Please enter Verification Note before approving.");
+      showAlert("Please enter Verification Note before approving.", "error");
       return;
     }
 
@@ -794,7 +829,7 @@ export default function SEPHDashboard({
 
   const handleBulkReject = () => {
     if (selectedItems.length === 0) {
-      alert("Please select at least one item to reject.");
+      showAlert("Please select at least one item to reject.", "error");
       return;
     }
 
@@ -803,7 +838,7 @@ export default function SEPHDashboard({
 
   const confirmBulkReject = () => {
     if (!bulkRejectRemarks) {
-      alert("Please enter remarks before rejecting.");
+      showAlert("Please enter remarks before rejecting.", "error");
       return;
     }
 
@@ -837,7 +872,7 @@ export default function SEPHDashboard({
 
   const forwardBulkApprovedToDept = () => {
     if (!dept || !section || bulkApprovedItems.length === 0) {
-      alert("Select department and section");
+      showAlert("Select department and section", "error");
       return;
     }
 
@@ -873,7 +908,7 @@ export default function SEPHDashboard({
     setForwardRemarks("");
     
     // Show alert
-    alert("Forwarded successfully!");
+    showAlert("Forwarded successfully!", "success");
     
     // Set banner message
     setForwardSuccess(`✅ Successfully Forwarded ${count} Work(s) to ENCPH Department!`);
@@ -916,11 +951,51 @@ export default function SEPHDashboard({
   const [isMenuOpen, setIsMenuOpen] = useState(true);
 
   const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: "📊" },
-    { id: "reports", label: "Reports", icon: "📄" },
-    { id: "gos", label: "GO's", icon: "📋" },
-    { id: "circular", label: "Circular & Proceedings", icon: "📢" },
-    { id: "guidelines", label: "Guidelines", icon: "📐" },
+    { 
+      id: "dashboard", 
+      label: "Dashboard", 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      )
+    },
+    { 
+      id: "reports", 
+      label: "Reports", 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      )
+    },
+    { 
+      id: "gos", 
+      label: "GO's", 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      )
+    },
+    { 
+      id: "circular", 
+      label: "Circular & Proceedings", 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+        </svg>
+      )
+    },
+    { 
+      id: "guidelines", 
+      label: "Guidelines", 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+        </svg>
+      )
+    },
   ];
 
   return (
@@ -935,16 +1010,112 @@ export default function SEPHDashboard({
               e.preventDefault();
               e.stopPropagation();
             }
-            const confirmed = window.confirm("Are you sure you want to logout?");
-            if (confirmed) {
+            showLogoutConfirmation(() => {
               if (logout) {
                 logout();
               }
               window.location.href = "/";
-            }
+            });
           }}
         />
       </div>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 transform transition-all">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Confirm Logout</h3>
+            </div>
+            <div className="text-gray-600 mb-6">
+              <p className="mb-2">Are you sure you want to logout?</p>
+              <p>You will need to login again to access the dashboard.</p>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleLogoutCancel}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogoutConfirm}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Alert Modal */}
+      {alertModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]" onClick={closeAlert}>
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 transform transition-all" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start mb-4">
+              <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mr-3 ${
+                alertModal.type === "success" ? "bg-green-100" :
+                alertModal.type === "error" ? "bg-red-100" :
+                alertModal.type === "warning" ? "bg-yellow-100" :
+                "bg-blue-100"
+              }`}>
+                {alertModal.type === "success" ? (
+                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : alertModal.type === "error" ? (
+                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                ) : alertModal.type === "warning" ? (
+                  <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                ) : (
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+              </div>
+              <div className="flex-1">
+                <h3 className={`text-lg font-semibold mb-2 ${
+                  alertModal.type === "success" ? "text-green-900" :
+                  alertModal.type === "error" ? "text-red-900" :
+                  alertModal.type === "warning" ? "text-yellow-900" :
+                  "text-blue-900"
+                }`}>
+                  {alertModal.type === "success" ? "Success" :
+                   alertModal.type === "error" ? "Error" :
+                   alertModal.type === "warning" ? "Warning" :
+                   "Information"}
+                </h3>
+                <div className="text-gray-700 whitespace-pre-line">
+                  {alertModal.message}
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={closeAlert}
+                className={`px-4 py-2 text-white rounded-md hover:opacity-90 transition-colors font-medium ${
+                  alertModal.type === "success" ? "bg-green-600 hover:bg-green-700" :
+                  alertModal.type === "error" ? "bg-red-600 hover:bg-red-700" :
+                  alertModal.type === "warning" ? "bg-yellow-600 hover:bg-yellow-700" :
+                  "bg-blue-600 hover:bg-blue-700"
+                }`}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="flex items-start relative pt-20 overflow-x-hidden">
         <SidebarMenu

@@ -197,12 +197,17 @@ export default function Login({ onLogin }) {
                 type="text"
                 value={username}
                 onChange={handleUsernameChange}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && username.trim() && !usernameVerified) {
+                    e.preventDefault();
+                    handleVerifyUsername();
+                  }
+                }}
                 className={`flex-1 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none ${
                   usernameError ? "border-red-500 bg-red-50" : usernameVerified ? "border-green-500 bg-green-50" : "border-gray-300"
                 }`}
                 placeholder="Enter username"
                 autoComplete="username"
-                disabled={verifyingUsername}
               />
               <button
                 type="button"

@@ -96,7 +96,13 @@ export default function SidebarMenu({
                   : "text-slate-300 hover:bg-slate-700 hover:text-white hover:shadow-md hover:translate-x-1"
               }`}
             >
-              <span className="text-lg">{item.icon}</span>
+              <span className="flex items-center justify-center w-5 h-5 flex-shrink-0">
+                {typeof item.icon === 'string' ? (
+                  <span className="text-lg">{item.icon}</span>
+                ) : (
+                  item.icon
+                )}
+              </span>
               <span className="text-xs font-medium">{item.label}</span>
             </button>
             ))

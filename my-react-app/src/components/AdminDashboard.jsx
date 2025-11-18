@@ -195,17 +195,36 @@ export default function AdminDashboard({
     }
   }, [routerLocation.pathname]);
 
+  // Helper function to show logout confirmation modal
+  const showLogoutConfirmation = (callback) => {
+    setLogoutCallback(() => callback);
+    setShowLogoutModal(true);
+  };
+
+  // Handle logout confirmation
+  const handleLogoutConfirm = () => {
+    setShowLogoutModal(false);
+    if (logoutCallback) {
+      logoutCallback();
+      setLogoutCallback(null);
+    }
+  };
+
+  // Handle logout cancel
+  const handleLogoutCancel = () => {
+    setShowLogoutModal(false);
+    setLogoutCallback(null);
+  };
+
   // Intercept back navigation reliably
   useEffect(() => {
     const handler = (event) => {
       if (routerLocation.pathname !== "/") {
-        const confirmed = window.confirm("Are you sure you want to logout?");
-        if (confirmed) {
+        showLogoutConfirmation(() => {
           logout();
           navigate("/", { replace: true });
-        } else {
-          window.history.pushState(null, "", window.location.pathname);
-        }
+        });
+        window.history.pushState(null, "", window.location.pathname);
       }
     };
     window.addEventListener("popstate", handler);
@@ -220,13 +239,10 @@ export default function AdminDashboard({
       // Only if we are not forced by code (navigate or redirect)
       document.referrer && !document.referrer.includes("/login")
     ) {
-      const confirmed = window.confirm("Are you sure you want to logout?");
-      if (!confirmed) {
-        // Block navigation by pushing back to the last dashboard route (customize as needed)
-        window.history.go(1);
-      } else {
+      showLogoutConfirmation(() => {
         logout();
-      }
+      });
+      window.history.go(1);
     }
   }, [routerLocation.pathname, logout]);
 
@@ -274,6 +290,23 @@ export default function AdminDashboard({
   // UI
   const [formError, setFormError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [logoutCallback, setLogoutCallback] = useState(null);
+  const [showWorkForm, setShowWorkForm] = useState(false);
+  const [showFiltersAndForm, setShowFiltersAndForm] = useState(false);
+  
+  // Alert modal state
+  const [alertModal, setAlertModal] = useState({ show: false, message: "", type: "info" });
+  
+  // Function to show custom alert
+  const showAlert = (message, type = "info") => {
+    setAlertModal({ show: true, message, type });
+  };
+  
+  // Function to close alert
+  const closeAlert = () => {
+    setAlertModal({ show: false, message: "", type: "info" });
+  };
 
   // active CR cycle tracking (null when none)
   const [activeCR, setActiveCR] = useState(null);
@@ -307,7 +340,8 @@ export default function AdminDashboard({
 
   // Derived states
   const isSelectionReady = selection.year && selection.installment && selection.grantType && selection.program;
-  const showProgramForm = isSelectionReady && selection.grantType === "Untied Grant" && (selection.program === "RADP" || selection.program === "ADP");
+  const canShowForm = isSelectionReady && selection.grantType === "Untied Grant" && (selection.program === "RADP" || selection.program === "ADP");
+  const showProgramForm = canShowForm;
   const remainingBudget = Math.max(0, TOTAL_BUDGET - totalSubmittedCost);
   
   // Get date range for CR Date based on selected year
@@ -358,8 +392,8 @@ export default function AdminDashboard({
   // Track if we're editing (to count it in submissions length for Forward button)
   const [isEditing, setIsEditing] = useState(false);
 
-  // Card-based navigation state - default to "forwarded"
-  const [selectedView, setSelectedView] = useState("forwarded");
+  // Card-based navigation state - default to null (no view selected initially)
+  const [selectedView, setSelectedView] = useState(null);
 
   // Image zoom modal state
   const [zoomedImage, setZoomedImage] = useState(null);
@@ -605,7 +639,7 @@ export default function AdminDashboard({
       case "cdmaApproved":
         return "CDMA Approved Tasks";
       case "rejected":
-        return "Sent back REJECTED LIST";
+        return "Sent Back Rejected List";
       default:
         return "Forwarded Tasks";
     }
@@ -768,22 +802,18 @@ export default function AdminDashboard({
       });
       
       if (!Number.isInteger(reqCount) || reqCount < 1) {
-        alert("Please enter valid Number of Works (>=1).");
+        showAlert("Please enter valid Number of Works (>=1).", "error");
         return;
       }
       if (totalSubmissions < reqCount) {
         const remaining = reqCount - totalSubmissions;
-        const message = `Cannot forward to Commissioner!\n\n` +
-          `Required Number of Works: ${reqCount}\n` +
-          `Currently Submitted: ${totalSubmissions}\n` +
-          `You need to submit ${remaining} more work(s) before forwarding.\n\n` +
-          `Please complete all ${reqCount} work(s) and then try forwarding again.`;
-        alert(message);
+        const message = `Cannot forward to Commissioner!\n\nRequired Number of Works: ${reqCount}\nCurrently Submitted: ${totalSubmissions}\nYou need to submit ${remaining} more work(s) before forwarding.\n\nPlease complete all ${reqCount} work(s) and then try forwarding again.`;
+        showAlert(message, "error");
         setFormError(`You need to submit ${remaining} more work(s) before forwarding. Required: ${reqCount}, Submitted: ${totalSubmissions}`);
         return;
       }
       if (!committeeFile || !councilFile) {
-        alert("Please upload committee and council files before forwarding.");
+        showAlert("Please upload committee and council files before forwarding.", "error");
         return;
       }
     
@@ -912,7 +942,7 @@ export default function AdminDashboard({
       console.log("✅ Admin: Form cleared");
       
       // Show alert
-      alert("Forwarded successfully!");
+      showAlert("Forwarded successfully!", "success");
       
       // Set banner message
       setSuccessMsg("Forwarded to Commissioner!");
@@ -923,7 +953,7 @@ export default function AdminDashboard({
       console.log("✅ Admin: Forward to commissioner completed successfully");
     } catch (error) {
       console.error("❌ Admin: Error forwarding to commissioner:", error);
-      alert(`Error forwarding tasks: ${error.message}`);
+      showAlert(`Error forwarding tasks: ${error.message}`, "error");
       setFormError(`Error forwarding tasks: ${error.message}`);
     }
   }
@@ -937,11 +967,51 @@ export default function AdminDashboard({
   const [isMenuOpen, setIsMenuOpen] = useState(true);
 
   const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: "" },
-    { id: "reports", label: "Reports", icon: "" },
-    { id: "gos", label: "GO's", icon: "" },
-    { id: "circular", label: "Circular & Proceedings", icon: "" },
-    { id: "guidelines", label: "Guidelines", icon: "" },
+    { 
+      id: "dashboard", 
+      label: "Dashboard", 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      )
+    },
+    { 
+      id: "reports", 
+      label: "Reports", 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      )
+    },
+    { 
+      id: "gos", 
+      label: "GO's", 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      )
+    },
+    { 
+      id: "circular", 
+      label: "Circular & Proceedings", 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+        </svg>
+      )
+    },
+    { 
+      id: "guidelines", 
+      label: "Guidelines", 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+        </svg>
+      )
+    },
   ];
 
   return (
@@ -975,14 +1045,110 @@ export default function AdminDashboard({
           title="15th Finance Commission"
           user={user}
           onLogout={() => {
-            const confirmed = window.confirm("Are you sure you want to logout?");
-            if (confirmed) {
+            showLogoutConfirmation(() => {
               logout();
               navigate("/");
-            }
+            });
           }}
         />
       </div>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 transform transition-all">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Confirm Logout</h3>
+            </div>
+            <div className="text-gray-600 mb-6">
+              <p className="mb-2">Are you sure you want to logout?</p>
+              <p>You will need to login again to access the dashboard.</p>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleLogoutCancel}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogoutConfirm}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Alert Modal */}
+      {alertModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]" onClick={closeAlert}>
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 transform transition-all" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start mb-4">
+              <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mr-3 ${
+                alertModal.type === "success" ? "bg-green-100" :
+                alertModal.type === "error" ? "bg-red-100" :
+                alertModal.type === "warning" ? "bg-yellow-100" :
+                "bg-blue-100"
+              }`}>
+                {alertModal.type === "success" ? (
+                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : alertModal.type === "error" ? (
+                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                ) : alertModal.type === "warning" ? (
+                  <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                ) : (
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+              </div>
+              <div className="flex-1">
+                <h3 className={`text-lg font-semibold mb-2 ${
+                  alertModal.type === "success" ? "text-green-900" :
+                  alertModal.type === "error" ? "text-red-900" :
+                  alertModal.type === "warning" ? "text-yellow-900" :
+                  "text-blue-900"
+                }`}>
+                  {alertModal.type === "success" ? "Success" :
+                   alertModal.type === "error" ? "Error" :
+                   alertModal.type === "warning" ? "Warning" :
+                   "Information"}
+                </h3>
+                <div className="text-gray-700 whitespace-pre-line">
+                  {alertModal.message}
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={closeAlert}
+                className={`px-4 py-2 text-white rounded-md hover:opacity-90 transition-colors font-medium ${
+                  alertModal.type === "success" ? "bg-green-600 hover:bg-green-700" :
+                  alertModal.type === "error" ? "bg-red-600 hover:bg-red-700" :
+                  alertModal.type === "warning" ? "bg-yellow-600 hover:bg-yellow-700" :
+                  "bg-blue-600 hover:bg-blue-700"
+                }`}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="flex items-start relative pt-20 overflow-x-hidden">
         <SidebarMenu
@@ -1003,6 +1169,9 @@ export default function AdminDashboard({
               </div>
             )}
 
+        {/* Heading */}
+        <h2 className="text-2xl font-semibold text-gray-800 mb-4 text-center">ADP Works Dashboard</h2>
+
         {/* Statistics Cards */}
         <div className="bg-white rounded-xl shadow p-6 border mb-6">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -1011,7 +1180,7 @@ export default function AdminDashboard({
               onClick={() => setSelectedView("noOfCrs")}
               className={`bg-blue-50 border border-blue-200 rounded-lg p-3 cursor-pointer hover:bg-blue-100 transition ${selectedView === "noOfCrs" ? "ring-2 ring-blue-500" : ""}`}
             >
-              <div className="text-xs text-blue-600 font-medium mb-1">No. of CR's</div>
+              <div className="text-sm text-blue-600 font-bold mb-1">No. of CR's</div>
               <div className="text-xl font-bold text-blue-700">
                 {(() => {
                   const groupedByCR = {};
@@ -1031,7 +1200,7 @@ export default function AdminDashboard({
               onClick={() => setSelectedView("allWorks")}
               className={`bg-purple-50 border border-purple-200 rounded-lg p-3 cursor-pointer hover:bg-purple-100 transition ${selectedView === "allWorks" ? "ring-2 ring-purple-500" : ""}`}
             >
-              <div className="text-xs text-purple-600 font-medium mb-1">No. of Works</div>
+              <div className="text-sm text-purple-600 font-bold mb-1">No. of Works</div>
               <div className="text-xl font-bold text-purple-700">
                 {submissions.length + 
                  (forwardedSubmissions || []).filter(s => 
@@ -1046,7 +1215,7 @@ export default function AdminDashboard({
               onClick={() => setSelectedView("forwarded")}
               className={`bg-indigo-50 border border-indigo-200 rounded-lg p-3 cursor-pointer hover:bg-indigo-100 transition ${selectedView === "forwarded" ? "ring-2 ring-indigo-500" : ""}`}
             >
-              <div className="text-xs text-indigo-600 font-medium mb-1">No. of Forwarded</div>
+              <div className="text-sm text-indigo-600 font-bold mb-1">No. of Forwarded</div>
               <div className="text-xl font-bold text-indigo-700">
                 {(forwardedSubmissions || []).filter(s => s.status === "Pending Review" || s.status?.startsWith("Forwarded to") || s.status === "Approved").length}
               </div>
@@ -1057,18 +1226,18 @@ export default function AdminDashboard({
               onClick={() => setSelectedView("cdmaApproved")}
               className={`bg-green-50 border border-green-200 rounded-lg p-3 cursor-pointer hover:bg-green-100 transition ${selectedView === "cdmaApproved" ? "ring-2 ring-green-500" : ""}`}
             >
-              <div className="text-xs text-green-600 font-medium mb-1">No. of Approved</div>
+              <div className="text-sm text-green-600 font-bold mb-1">No. of Approved</div>
               <div className="text-xl font-bold text-green-700">
                 {(forwardedSubmissions || []).filter(s => s.status === "CDMA Approved").length}
               </div>
             </div>
 
-            {/* Sent back REJECTED LIST */}
+            {/* Sent Back Rejected List */}
             <div 
               onClick={() => setSelectedView("rejected")}
               className={`bg-orange-50 border border-orange-200 rounded-lg p-3 cursor-pointer hover:bg-orange-100 transition ${selectedView === "rejected" ? "ring-2 ring-orange-500" : ""}`}
             >
-              <div className="text-xs text-orange-600 font-medium mb-1">Sent back REJECTED LIST</div>
+              <div className="text-sm text-orange-600 font-bold mb-1">Sent Back Rejected List</div>
               <div className="text-xl font-bold text-orange-700">
                 {(forwardedSubmissions || []).filter(s => s.status === "Rejected" && s.rejectedBy === "Commissioner").length}
               </div>
@@ -1084,16 +1253,35 @@ export default function AdminDashboard({
           {selection.program && <div className="px-3 py-1 rounded-full bg-gray-100 text-sm">{selection.program}</div>}
         </div>
 
-        {/* Create New ADP Heading */}
-        <h2 className="text-xl font-bold mb-4 text-gray-800">Create New ADP</h2>
+        {/* Create New ADP Button */}
+        <div className="mb-4">
+          <button
+            onClick={() => {
+              if (showFiltersAndForm) {
+                // Hide everything and reset to initial state
+                setShowFiltersAndForm(false);
+                setShowWorkForm(false);
+                setSelectedView(null);
+                setSelection({ year: "", installment: "", grantType: "", program: "" });
+                setFormError("");
+                resetForm();
+              } else {
+                // Show filters and form area
+                setShowFiltersAndForm(true);
+                setFormError("");
+              }
+            }}
+            className="px-6 py-3 text-base font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Create New ADP
+          </button>
+        </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow p-6 border mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-sm text-gray-600 font-medium">Filters</div>
-            <div />
-          </div>
-
+        {/* Filters and Form Area - Show only after clicking Create New ADP */}
+        {showFiltersAndForm && (
+          <>
+            {/* Filters */}
+            <div className="bg-white rounded-xl shadow p-6 border mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm text-gray-600 mb-1">Year <span className="text-red-500">*</span></label>
@@ -1155,10 +1343,24 @@ export default function AdminDashboard({
               </select>
             </div>
           </div>
+          
+          <div className="flex items-center justify-end mt-4">
+            <button
+              onClick={() => {
+                setSelection({ year: "", installment: "", grantType: "", program: "" });
+                setShowWorkForm(false);
+                setFormError("");
+              }}
+              className="px-4 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors font-medium disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+              disabled={!selection.year && !selection.installment && !selection.grantType && !selection.program}
+            >
+              Clear
+            </button>
+          </div>
         </div>
 
         {/* Summary & form show only when selection is ready */}
-        {showProgramForm && (
+        {canShowForm && (
           <div className="space-y-6">
             {/* Summary */}
             <div className="bg-white rounded-xl shadow p-6 border">
@@ -1180,51 +1382,51 @@ export default function AdminDashboard({
             <div className="bg-white rounded-xl shadow p-6 border">
               <div className="text-lg font-semibold mb-6 text-gray-800">{selection.program} Details</div>
 
-              {/* Section 1: CR Information */}
+              {/* CR Status Selection */}
               <div className="mb-6 pb-6 border-b border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">CR Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">CR Status <span className="text-red-500">*</span></label>
-                    <div className="flex gap-6">
-                      <label className="inline-flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="crStatus"
-                          checked={crStatus === "CR"}
-                          onChange={() => setCrStatus("CR")}
-                          className="w-4 h-4 text-blue-600"
-                        />
-                        <span className="text-sm text-gray-700">CR</span>
-                      </label>
-                      <label className="inline-flex items-center gap-2 cursor-pointer">
-                        <input 
-                          type="radio" 
-                          name="crStatus" 
-                          checked={crStatus === "IA"} 
-                          onChange={() => setCrStatus("IA")}
-                          className="w-4 h-4 text-blue-600"
-                        />
-                        <span className="text-sm text-gray-700">In anticipation</span>
-                      </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">CR Status <span className="text-red-500">*</span></label>
+                <div className="flex gap-6">
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="crStatus"
+                      checked={crStatus === "CR"}
+                      onChange={() => setCrStatus("CR")}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-sm text-gray-700">CR</span>
+                  </label>
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="crStatus" 
+                      checked={crStatus === "IA"} 
+                      onChange={() => setCrStatus("IA")}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-sm text-gray-700">In anticipation</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Row 1: CR Number, CR Date, No. of Works, Name of Sector */}
+              {crStatus === "CR" && (
+                <div className="mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">CR Number <span className="text-red-500">*</span></label>
+                      <input
+                        value={crNumber}
+                        onChange={(e) => setCrNumber(e.target.value)}
+                        disabled={submissions.length > 0}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        placeholder="Enter CR number"
+                      />
                     </div>
-                  </div>
 
-                  {crStatus === "CR" && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">CR Number <span className="text-red-500">*</span></label>
-                        <input
-                          value={crNumber}
-                          onChange={(e) => setCrNumber(e.target.value)}
-                          disabled={submissions.length > 0}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                          placeholder="Enter CR number"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">CR Date <span className="text-red-500">*</span></label>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">CR Date <span className="text-red-500">*</span></label>
+                      <div className="relative">
                         <input
                           type="date"
                           value={crDate}
@@ -1235,67 +1437,67 @@ export default function AdminDashboard({
                           className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                         />
                       </div>
+                    </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Number of Works <span className="text-red-500">*</span></label>
-                        <input
-                          type="text"
-                          value={numberOfWorks}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === '' || /^\d+$/.test(value)) {
-                              setNumberOfWorks(value);
-                            }
-                          }}
-                          disabled={submissions.length > 0}
-                          className={`w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${submittedCount < Number(numberOfWorks || 0) && numberOfWorks ? "border-red-500 bg-red-50" : "border-gray-300"}`}
-                          placeholder="Enter number of works"
-                        />
-                        {activeCR && (
-                          <div className="text-xs text-gray-500 mt-1">Active CR: {activeCR.submittedCount}/{activeCR.targetCount} submitted</div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">No. of Works <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        value={numberOfWorks}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || /^\d+$/.test(value)) {
+                            setNumberOfWorks(value);
+                          }
+                        }}
+                        disabled={submissions.length > 0}
+                        className={`w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${submittedCount < Number(numberOfWorks || 0) && numberOfWorks ? "border-red-500 bg-red-50" : "border-gray-300"}`}
+                        placeholder="Enter number"
+                      />
+                      {activeCR && (
+                        <div className="text-xs text-gray-500 mt-1">Active CR: {activeCR.submittedCount}/{activeCR.targetCount} submitted</div>
+                      )}
+                    </div>
 
-              {/* Section 2: Work Details */}
-              <div className="mb-6 pb-6 border-b border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Work Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Name of the Sector <span className="text-red-500">*</span></label>
-                    <select 
-                      value={workType} 
-                      onChange={(e) => setWorkType(e.target.value)} 
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Select type of work</option>
-                      <option>SWM/LQM</option>
-                      <option>Water Supply</option>
-                      <option>UGD Drains</option>
-                      <option>CC Drains</option>
-                      <option>CC Roads</option>
-                      <option>BT Roads</option>
-                      <option>Construction of Slaughter Houses</option>
-                      <option>Development of Parks</option>
-                      <option>Protection of Open Spaces</option>
-                      <option>Burial grounds & Crematoriums</option>
-                      <option>Repairs to Municipal Schools</option>
-                      <option>Urban Health Clinics</option>
-                      <option>Greenery</option>
-                      <option>Street Lighting</option>
-                      <option>CC Charges</option>
-                      <option>EESL Dues</option>
-                      <option>ABC & ARV Activities</option>
-                      <option>Solar Panels</option>
-                      <option>CB</option>
-                      <option>IEC</option>
-                    </select>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Name of Sector <span className="text-red-500">*</span></label>
+                      <select 
+                        value={workType} 
+                        onChange={(e) => setWorkType(e.target.value)} 
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Select sector</option>
+                        <option>SWM/LQM</option>
+                        <option>Water Supply</option>
+                        <option>UGD Drains</option>
+                        <option>CC Drains</option>
+                        <option>CC Roads</option>
+                        <option>BT Roads</option>
+                        <option>Construction of Slaughter Houses</option>
+                        <option>Development of Parks</option>
+                        <option>Protection of Open Spaces</option>
+                        <option>Burial grounds & Crematoriums</option>
+                        <option>Repairs to Municipal Schools</option>
+                        <option>Urban Health Clinics</option>
+                        <option>Greenery</option>
+                        <option>Street Lighting</option>
+                        <option>CC Charges</option>
+                        <option>EESL Dues</option>
+                        <option>ABC & ARV Activities</option>
+                        <option>Solar Panels</option>
+                        <option>CB</option>
+                        <option>IEC</option>
+                      </select>
+                    </div>
                   </div>
+                </div>
+              )}
 
-                  <div>
+              {/* Row 2: Name of the work and Location Details side by side */}
+              <div className="mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  {/* Name of the work - takes 2 columns */}
+                  <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">Name of the work <span className="text-red-500">*</span></label>
                     <input
                       value={proposalName}
@@ -1305,48 +1507,56 @@ export default function AdminDashboard({
                     />
                   </div>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Location Details <span className="text-red-500">*</span></label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Area</label>
-                        <input 
-                          value={area} 
-                          onChange={(e) => setArea(e.target.value)} 
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500" 
-                          placeholder="Enter area"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Locality</label>
-                        <input 
-                          value={locality} 
-                          onChange={(e) => setLocality(e.target.value)} 
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500" 
-                          placeholder="Enter locality"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Ward No</label>
-                        <input 
-                          type="text"
-                          value={wardNo} 
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === '' || /^\d{1,3}$/.test(value)) {
-                              setWardNo(value);
-                            }
-                          }} 
-                          maxLength={3}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500" 
-                          placeholder="Enter ward number"
-                        />
+                  {/* Location Details container - takes 3 columns */}
+                  <div className="md:col-span-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Location Details</label>
+                    <div className="border border-gray-300 rounded-md p-3 bg-gray-50">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Area <span className="text-red-500">*</span></label>
+                          <input 
+                            value={area} 
+                            onChange={(e) => setArea(e.target.value)} 
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white" 
+                            placeholder="Area"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Locality <span className="text-red-500">*</span></label>
+                          <input 
+                            value={locality} 
+                            onChange={(e) => setLocality(e.target.value)} 
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white" 
+                            placeholder="Locality"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Ward No <span className="text-red-500">*</span></label>
+                          <input 
+                            type="text"
+                            value={wardNo} 
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === '' || /^\d{1,3}$/.test(value)) {
+                                setWardNo(value);
+                              }
+                            }} 
+                            maxLength={3}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white" 
+                            placeholder="Ward No"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Latitude/Longitude or Google Maps URL <span className="text-red-500">*</span></label>
+              {/* Row 3: Lat/Long, Estimated Cost, Priority */}
+              <div className="mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Lat/Long or Maps URL <span className="text-red-500">*</span></label>
                     <div className="relative">
                       {latlong && formatLatlongUrl(latlong) ? (
                         <div 
@@ -1371,25 +1581,21 @@ export default function AdminDashboard({
                           </button>
                         </div>
                       ) : (
-                        <textarea 
+                        <input 
                           value={latlong} 
                           onChange={(e) => setLatlong(e.target.value)} 
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none" 
-                          placeholder="Enter coordinates (e.g., 17.3850, 78.4867) or Google Maps URL"
-                          rows={2}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                          placeholder="Coordinates or Google Maps URL"
                         />
                       )}
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Section 3: Financial & Priority */}
-              <div className="mb-6 pb-6 border-b border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Financial & Priority</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Estimated Cost (₹) <span className="text-red-500">*</span></label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Estimated Cost (₹) <span className="text-red-500">*</span></label>
+                      <span className="text-xs text-gray-500 whitespace-nowrap ml-2">Remaining: ₹{remainingBudget.toLocaleString('en-IN')}</span>
+                    </div>
                     <input
                       type="text"
                       value={estimatedCost}
@@ -1416,7 +1622,7 @@ export default function AdminDashboard({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Prioritization <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Priority <span className="text-red-500">*</span></label>
                     <input 
                       type="text" 
                       value={prioritization} 
@@ -1427,18 +1633,17 @@ export default function AdminDashboard({
                         }
                       }} 
                       className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                      placeholder="Enter priority number"
+                      placeholder="Priority"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Section 4: File Uploads */}
+              {/* Row 4: File Uploads */}
               <div className="mb-6">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">File Uploads</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Upload work Image (.jpg, .png, etc.) <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Upload work Image</label>
                     {workImage && (
                       <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded-md text-xs">
                         <span className="text-green-700 font-medium">✓ File selected: {workImage.name || "Image"}</span>
@@ -1474,7 +1679,7 @@ export default function AdminDashboard({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Detailed Estimation Report (.pdf) <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Detailed Estimation Report(.pdf)</label>
                     {detailedReport && (
                       <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded-md text-xs">
                         <span className="text-green-700 font-medium">✓ File selected: {detailedReport.name || "Report"}</span>
@@ -1522,6 +1727,17 @@ export default function AdminDashboard({
                   className="px-6 py-2.5 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 >
                   Submit Work
+                </button>
+                <button 
+                  onClick={() => {
+                    resetForm();
+                    setFormError("");
+                    setCostError("");
+                    setSuccessMsg("");
+                  }} 
+                  className="px-6 py-2.5 bg-red-600 text-white rounded-md font-medium hover:bg-red-700 transition-colors focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                >
+                  Cancel
                 </button>
               </div>
 
@@ -1742,8 +1958,11 @@ export default function AdminDashboard({
             </div>
           </div>
         )}
-        {/* Dynamic Table based on selected view */}
-        {(() => {
+          </>
+        )}
+
+        {/* Dynamic Table based on selected view - Show only after clicking Create New ADP and a card */}
+        {showFiltersAndForm && selectedView && (() => {
           const currentList = getListForView(selectedView);
           const filteredList = applyFilters(currentList);
           const viewTitle = getViewTitle(selectedView);
