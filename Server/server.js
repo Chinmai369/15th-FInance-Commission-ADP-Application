@@ -3,8 +3,50 @@ import cors from "cors";
 import jwt from "jsonwebtoken";
 
 const app = express();
-app.use(cors());
+
+const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'];
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      console.log("⚠️ CORS: Request with no origin (allowed)");
+      return callback(null, true);
+    }
+    
+    console.log(`🌐 CORS: Checking origin: ${origin}`);
+    console.log(`   - Allowed origins: ${allowedOrigins.join(', ')}`);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`;
+      console.error(`❌ CORS: Origin rejected - ${origin}`);
+      return callback(new Error(msg), false);
+    }
+    
+    console.log(`✅ CORS: Origin allowed - ${origin}`);
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
+}));
+// app.use(cors({
+//   origin: 'http://localhost:3001',
+//   credentials: true,
+//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+//   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+// }));
 app.use(express.json());
+
+// Health check endpoint (before authentication middleware)
+app.get("/api/health", (req, res) => {
+  res.json({ 
+    success: true, 
+    message: "Server is running",
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -12,6 +54,10 @@ app.use((req, res, next) => {
   console.log(`[${timestamp}] ${req.method} ${req.path}`);
   if (req.method === "POST" && req.path === "/api/login") {
     console.log("⚠️ LOGIN REQUEST DETECTED - Detailed logs will follow!");
+  }
+  // Log CORS origin for debugging
+  if (req.headers.origin) {
+    console.log(`   - Origin: ${req.headers.origin}`);
   }
   next();
 });
@@ -165,20 +211,38 @@ app.post("/api/login", (req, res) => {
 
     console.log("🔍 Searching for user in credentials...");
     console.log("   - Available credentials:", Object.keys(CREDENTIALS).join(", "));
+    console.log("   - Available usernames:", Object.values(CREDENTIALS).map(c => c.username).join(", "));
     console.log("   - Looking for username:", username);
+    console.log("   - Username trimmed:", username.trim());
     
-    // Find user in hardcoded credentials
+    // First, check if username exists (check username first) - case-insensitive
     const userCredential = Object.values(CREDENTIALS).find(
-      (cred) => cred.username === username && cred.password === password
+      (cred) => cred.username.toLowerCase() === username.trim().toLowerCase()
     );
 
     if (!userCredential) {
-      console.log("❌ AUTHENTICATION FAILED");
-      console.log("   - Username not found or password incorrect");
+      console.log("❌ AUTHENTICATION FAILED: Username not found");
       console.log("   - Attempted username:", username);
       console.log("   - Available usernames:", Object.values(CREDENTIALS).map(c => c.username).join(", "));
       console.log("═══════════════════════════════════════════════════");
-      return res.status(401).json({ success: false, message: "Invalid username or password" });
+      return res.status(401).json({ 
+        success: false, 
+        message: "Invalid username",
+        errorType: "username"
+      });
+    }
+
+    // Username exists, now check password (check password second)
+    if (userCredential.password !== password) {
+      console.log("❌ AUTHENTICATION FAILED: Password incorrect");
+      console.log("   - Username:", username);
+      console.log("   - Password mismatch");
+      console.log("═══════════════════════════════════════════════════");
+      return res.status(401).json({ 
+        success: false, 
+        message: "Invalid password",
+        errorType: "password"
+      });
     }
 
     console.log("✅ USER FOUND");
@@ -230,6 +294,59 @@ app.post("/api/login", (req, res) => {
       success: false, 
       message: "Server error",
       error: process.env.NODE_ENV !== 'production' ? error.message : undefined
+    });
+  }
+});
+
+// Validate Username Endpoint (for real-time validation)
+app.post("/api/validate-username", (req, res) => {
+  const { username } = req.body;
+  
+  console.log("🔍 VALIDATE USERNAME REQUEST");
+  console.log("   - Username received:", username || "not provided");
+  console.log("   - Username trimmed:", username ? username.trim() : "N/A");
+  console.log("   - Available usernames:", Object.values(CREDENTIALS).map(c => c.username).join(", "));
+  
+  try {
+    if (!username || username.trim() === "") {
+      console.log("   - Result: Username is required");
+      return res.status(400).json({ 
+        valid: false, 
+        message: "Username is required" 
+      });
+    }
+
+    const trimmedUsername = username.trim();
+    
+    // Check if username exists in credentials (case-insensitive comparison)
+    const userCredential = Object.values(CREDENTIALS).find(
+      (cred) => cred.username.toLowerCase() === trimmedUsername.toLowerCase()
+    );
+
+    if (!userCredential) {
+      console.log("   - Result: Invalid username");
+      console.log("   - Searched for:", trimmedUsername);
+      console.log("   - Available:", Object.values(CREDENTIALS).map(c => c.username).join(", "));
+      return res.status(200).json({ 
+        valid: false, 
+        message: "Invalid username" 
+      });
+    }
+
+    console.log("   - Result: Valid username");
+    console.log("   - Matched user:", userCredential.username);
+    console.log("   - Role:", userCredential.role);
+    return res.status(200).json({ 
+      valid: true, 
+      message: "Username is valid" 
+    });
+  } catch (error) {
+    console.error("❌ VALIDATE USERNAME ERROR");
+    console.error("   - Error:", error.message);
+    console.error("   - Stack:", error.stack);
+    return res.status(500).json({ 
+      valid: false, 
+      message: "Server error" 
     });
   }
 });
