@@ -70,12 +70,31 @@ const JWT_EXPIRATION = "7d";
 
 // Hardcoded credentials
 const CREDENTIALS = {
-  admin: { username: "Venkatesh", password: "admin123", role: "engineer", id: 1 },
-  commissioner: { username: "Ramesh", password: "comm123", role: "Commissioner", id: 2 },
-  eeph: { username: "Priya", password: "eeph123", role: "eeph", id: 3 },
-  seph: { username: "Suresh", password: "seph123", role: "seph", id: 4 },
-  encph: { username: "Karthik", password: "encph123", role: "encph", id: 5 },
-  cdma: { username: "Srinivas", password: "cdma123", role: "cdma", id: 6 },
+  // Admin Dashboard - Static mobile number for easy access
+  admin: { username: "Venkatesh", password: "admin123", role: "engineer", id: 1, mobile: "9999999999" },
+  commissioner: { username: "Ramesh", password: "comm123", role: "Commissioner", id: 2, mobile: "9876543211" },
+  eeph: { username: "Priya", password: "eeph123", role: "eeph", id: 3, mobile: "9876543212" },
+  seph: { username: "Suresh", password: "seph123", role: "seph", id: 4, mobile: "9876543213" },
+  encph: { username: "Karthik", password: "encph123", role: "encph", id: 5, mobile: "9876543214" },
+  cdma: { username: "Srinivas", password: "cdma123", role: "cdma", id: 6, mobile: "9876543215" },
+};
+
+// OTP storage (in-memory, expires after 5 minutes)
+const OTP_STORAGE = {};
+
+// Generate random 4-digit OTP
+const generateOTP = () => {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+};
+
+// Clean expired OTPs
+const cleanExpiredOTPs = () => {
+  const now = Date.now();
+  Object.keys(OTP_STORAGE).forEach(mobile => {
+    if (OTP_STORAGE[mobile].expiresAt < now) {
+      delete OTP_STORAGE[mobile];
+    }
+  });
 };
 
 // JWT Authentication Middleware
@@ -212,22 +231,39 @@ app.post("/api/login", (req, res) => {
     console.log("🔍 Searching for user in credentials...");
     console.log("   - Available credentials:", Object.keys(CREDENTIALS).join(", "));
     console.log("   - Available usernames:", Object.values(CREDENTIALS).map(c => c.username).join(", "));
-    console.log("   - Looking for username:", username);
-    console.log("   - Username trimmed:", username.trim());
+    console.log("   - Available mobile numbers:", Object.values(CREDENTIALS).map(c => c.mobile).join(", "));
+    console.log("   - Looking for username/mobile:", username);
+    console.log("   - Input trimmed:", username.trim());
     
-    // First, check if username exists (check username first) - case-insensitive
-    const userCredential = Object.values(CREDENTIALS).find(
-      (cred) => cred.username.toLowerCase() === username.trim().toLowerCase()
-    );
+    // Check if input is a mobile number (10 digits) or username
+    const trimmedInput = username.trim();
+    const isMobileNumber = /^\d{10}$/.test(trimmedInput);
+    
+    let userCredential;
+    if (isMobileNumber) {
+      // Search by mobile number
+      console.log("   - Detected as mobile number");
+      userCredential = Object.values(CREDENTIALS).find(
+        (cred) => cred.mobile === trimmedInput
+      );
+    } else {
+      // Search by username - case-insensitive
+      console.log("   - Detected as username");
+      userCredential = Object.values(CREDENTIALS).find(
+        (cred) => cred.username.toLowerCase() === trimmedInput.toLowerCase()
+      );
+    }
 
     if (!userCredential) {
-      console.log("❌ AUTHENTICATION FAILED: Username not found");
-      console.log("   - Attempted username:", username);
+      console.log("❌ AUTHENTICATION FAILED: Username/Mobile not found");
+      console.log("   - Attempted input:", username);
+      console.log("   - Input type:", isMobileNumber ? "mobile" : "username");
       console.log("   - Available usernames:", Object.values(CREDENTIALS).map(c => c.username).join(", "));
+      console.log("   - Available mobile numbers:", Object.values(CREDENTIALS).map(c => c.mobile).join(", "));
       console.log("═══════════════════════════════════════════════════");
       return res.status(401).json({ 
         success: false, 
-        message: "Invalid username",
+        message: isMobileNumber ? "Invalid mobile number" : "Invalid username",
         errorType: "username"
       });
     }
@@ -298,50 +334,72 @@ app.post("/api/login", (req, res) => {
   }
 });
 
-// Validate Username Endpoint (for real-time validation)
+// Validate Username/Mobile Endpoint (for real-time validation)
 app.post("/api/validate-username", (req, res) => {
   const { username } = req.body;
   
-  console.log("🔍 VALIDATE USERNAME REQUEST");
-  console.log("   - Username received:", username || "not provided");
-  console.log("   - Username trimmed:", username ? username.trim() : "N/A");
+  console.log("🔍 VALIDATE USERNAME/MOBILE REQUEST");
+  console.log("   - Input received:", username || "not provided");
+  console.log("   - Input trimmed:", username ? username.trim() : "N/A");
   console.log("   - Available usernames:", Object.values(CREDENTIALS).map(c => c.username).join(", "));
+  console.log("   - Available mobile numbers:", Object.values(CREDENTIALS).map(c => c.mobile).join(", "));
   
   try {
     if (!username || username.trim() === "") {
-      console.log("   - Result: Username is required");
+      console.log("   - Result: Username/Mobile is required");
       return res.status(400).json({ 
         valid: false, 
-        message: "Username is required" 
+        message: "Username or mobile number is required" 
       });
     }
 
-    const trimmedUsername = username.trim();
+    const trimmedInput = username.trim();
     
-    // Check if username exists in credentials (case-insensitive comparison)
-    const userCredential = Object.values(CREDENTIALS).find(
-      (cred) => cred.username.toLowerCase() === trimmedUsername.toLowerCase()
-    );
+    // Check if input is a mobile number (10 digits) or username
+    const isMobileNumber = /^\d{10}$/.test(trimmedInput);
+    
+    console.log("   - Input after trim:", trimmedInput);
+    console.log("   - Is mobile number (10 digits)?", isMobileNumber);
+    console.log("   - All available mobile numbers:", Object.values(CREDENTIALS).map(c => `${c.username}: ${c.mobile}`).join(", "));
+    
+    let userCredential;
+    if (isMobileNumber) {
+      // Search by mobile number
+      console.log("   - Detected as mobile number, searching...");
+      userCredential = Object.values(CREDENTIALS).find(
+        (cred) => cred.mobile === trimmedInput
+      );
+      console.log("   - Mobile search result:", userCredential ? `Found: ${userCredential.username}` : "Not found");
+    } else {
+      // Search by username (case-insensitive comparison)
+      console.log("   - Detected as username, searching...");
+      userCredential = Object.values(CREDENTIALS).find(
+        (cred) => cred.username.toLowerCase() === trimmedInput.toLowerCase()
+      );
+      console.log("   - Username search result:", userCredential ? `Found: ${userCredential.username}` : "Not found");
+    }
 
     if (!userCredential) {
-      console.log("   - Result: Invalid username");
-      console.log("   - Searched for:", trimmedUsername);
-      console.log("   - Available:", Object.values(CREDENTIALS).map(c => c.username).join(", "));
+      console.log("   - Result: Invalid username/mobile");
+      console.log("   - Searched for:", trimmedInput);
+      console.log("   - Input type:", isMobileNumber ? "mobile" : "username");
+      console.log("   - Available mobiles:", Object.values(CREDENTIALS).map(c => c.mobile).join(", "));
       return res.status(200).json({ 
         valid: false, 
-        message: "Invalid username" 
+        message: isMobileNumber ? "Invalid mobile number" : "Invalid username" 
       });
     }
 
-    console.log("   - Result: Valid username");
+    console.log("   - Result: Valid username/mobile");
     console.log("   - Matched user:", userCredential.username);
+    console.log("   - Mobile:", userCredential.mobile);
     console.log("   - Role:", userCredential.role);
     return res.status(200).json({ 
       valid: true, 
-      message: "Username is valid" 
+      message: isMobileNumber ? "Mobile number is valid" : "Username is valid" 
     });
   } catch (error) {
-    console.error("❌ VALIDATE USERNAME ERROR");
+    console.error("❌ VALIDATE USERNAME/MOBILE ERROR");
     console.error("   - Error:", error.message);
     console.error("   - Stack:", error.stack);
     return res.status(500).json({ 
@@ -362,6 +420,214 @@ app.get("/api/verify", authenticateToken, (req, res) => {
     success: true,
     user: req.user,
   });
+});
+
+// Send OTP Endpoint
+app.post("/api/send-otp", (req, res) => {
+  const { mobile } = req.body;
+  const timestamp = formatTime();
+  
+  console.log("\n");
+  console.log("═══════════════════════════════════════════════════");
+  console.log("📱 SEND OTP REQUEST RECEIVED");
+  console.log("   - Mobile:", mobile || "not provided");
+  console.log("⏰ Request Time:", timestamp);
+  
+  try {
+    if (!mobile || !/^\d{10}$/.test(mobile.trim())) {
+      console.log("❌ VALIDATION FAILED: Invalid mobile number");
+      return res.status(400).json({
+        success: false,
+        message: "Valid 10-digit mobile number is required"
+      });
+    }
+
+    const trimmedMobile = mobile.trim();
+    
+    // Check if mobile number exists in credentials
+    const userCredential = Object.values(CREDENTIALS).find(
+      (cred) => cred.mobile === trimmedMobile
+    );
+
+    if (!userCredential) {
+      console.log("❌ MOBILE NOT FOUND");
+      console.log("   - Mobile:", trimmedMobile);
+      return res.status(404).json({
+        success: false,
+        message: "Mobile number not registered"
+      });
+    }
+
+    // Clean expired OTPs
+    cleanExpiredOTPs();
+
+    // Generate OTP
+    const otp = generateOTP();
+    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+    // Store OTP
+    OTP_STORAGE[trimmedMobile] = {
+      otp,
+      expiresAt,
+      userId: userCredential.id,
+      username: userCredential.username,
+      role: userCredential.role
+    };
+
+    console.log("✅ OTP GENERATED");
+    console.log("   - Mobile:", trimmedMobile);
+    console.log("   - OTP:", otp);
+    console.log("   - Expires at:", new Date(expiresAt).toISOString());
+    console.log("   - User:", userCredential.username);
+    console.log("   - Role:", userCredential.role);
+    console.log("═══════════════════════════════════════════════════");
+    console.log("\n");
+
+    // In production, send OTP via SMS service here
+    // For now, we'll return it (in production, don't return OTP)
+    res.json({
+      success: true,
+      message: "OTP sent successfully",
+      // Remove this in production - OTP should only be sent via SMS
+      // otp: otp // For testing only
+    });
+  } catch (error) {
+    console.error("❌ SEND OTP ERROR");
+    console.error("   - Error:", error.message);
+    console.error("   - Stack:", error.stack);
+    console.log("═══════════════════════════════════════════════════");
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+});
+
+// Verify OTP and Login Endpoint
+app.post("/api/verify-otp", (req, res) => {
+  const { mobile, otp } = req.body;
+  const timestamp = formatTime();
+  const isoTime = new Date().toISOString();
+  
+  console.log("\n");
+  console.log("═══════════════════════════════════════════════════");
+  console.log("🔐 VERIFY OTP REQUEST RECEIVED");
+  console.log("   - Mobile:", mobile || "not provided");
+  console.log("   - OTP:", otp ? "***" : "not provided");
+  console.log("⏰ Request Time:", timestamp);
+  
+  try {
+    if (!mobile || !/^\d{10}$/.test(mobile.trim())) {
+      console.log("❌ VALIDATION FAILED: Invalid mobile number");
+      return res.status(400).json({
+        success: false,
+        message: "Valid 10-digit mobile number is required"
+      });
+    }
+
+    if (!otp || !/^\d{4}$/.test(otp.trim())) {
+      console.log("❌ VALIDATION FAILED: Invalid OTP format");
+      return res.status(400).json({
+        success: false,
+        message: "Valid 4-digit OTP is required"
+      });
+    }
+
+    const trimmedMobile = mobile.trim();
+    const trimmedOTP = otp.trim();
+
+    // Clean expired OTPs
+    cleanExpiredOTPs();
+
+    // Check if OTP exists and is valid
+    const otpData = OTP_STORAGE[trimmedMobile];
+
+    if (!otpData) {
+      console.log("❌ OTP NOT FOUND OR EXPIRED");
+      return res.status(401).json({
+        success: false,
+        message: "OTP expired or not found. Please request a new OTP."
+      });
+    }
+
+    if (otpData.expiresAt < Date.now()) {
+      delete OTP_STORAGE[trimmedMobile];
+      console.log("❌ OTP EXPIRED");
+      return res.status(401).json({
+        success: false,
+        message: "OTP expired. Please request a new OTP."
+      });
+    }
+
+    if (otpData.otp !== trimmedOTP) {
+      console.log("❌ OTP MISMATCH");
+      console.log("   - Expected:", otpData.otp);
+      console.log("   - Received:", trimmedOTP);
+      return res.status(401).json({
+        success: false,
+        message: "Invalid OTP"
+      });
+    }
+
+    // OTP is valid, get user credentials
+    const userCredential = Object.values(CREDENTIALS).find(
+      (cred) => cred.id === otpData.userId
+    );
+
+    if (!userCredential) {
+      console.log("❌ USER NOT FOUND");
+      delete OTP_STORAGE[trimmedMobile];
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    // Generate JWT token
+    const tokenPayload = {
+      id: userCredential.id,
+      username: userCredential.username,
+      role: userCredential.role
+    };
+
+    const token = jwt.sign(
+      tokenPayload,
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRATION }
+    );
+
+    // Delete OTP after successful verification
+    delete OTP_STORAGE[trimmedMobile];
+
+    console.log("✅ OTP VERIFIED SUCCESSFULLY");
+    console.log("   - Mobile:", trimmedMobile);
+    console.log("   - User:", userCredential.username);
+    console.log("   - Role:", userCredential.role);
+    console.log("   - Token generated");
+    console.log("🎉 LOGIN SUCCESSFUL");
+    console.log("   - Login Time:", timestamp);
+    console.log("═══════════════════════════════════════════════════");
+    console.log("\n");
+
+    res.json({
+      success: true,
+      message: "Login successful",
+      token,
+      user: {
+        username: userCredential.username,
+        role: userCredential.role,
+      },
+    });
+  } catch (error) {
+    console.error("❌ VERIFY OTP ERROR");
+    console.error("   - Error:", error.message);
+    console.error("   - Stack:", error.stack);
+    console.log("═══════════════════════════════════════════════════");
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
 });
 
 
@@ -485,6 +751,13 @@ app.listen(5000, () => {
   console.log("🔐 Login endpoint: POST /api/login");
   console.log("🔒 Verify endpoint: GET /api/verify");
   console.log("🚪 Logout endpoint: POST /api/logout");
+  console.log("📱 Send OTP endpoint: POST /api/send-otp");
+  console.log("🔑 Verify OTP endpoint: POST /api/verify-otp");
+  console.log("═══════════════════════════════════════════════════");
+  console.log("👤 ADMIN STATIC MOBILE NUMBER: 9999999999");
+  console.log("   - Use this mobile number to login to Admin Dashboard");
+  console.log("   - Username: Venkatesh");
+  console.log("   - Password: admin123");
   console.log("═══════════════════════════════════════════════════");
   console.log("💡 All login/logout events will be logged with timestamps!");
   console.log("\n");

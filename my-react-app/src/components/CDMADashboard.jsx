@@ -816,7 +816,7 @@ export default function CDMADashboard({
               onClick={() => setSelectedView("noOfCrs")}
               className={`bg-blue-50 border border-blue-200 rounded-lg p-3 cursor-pointer hover:bg-blue-100 transition ${selectedView === "noOfCrs" ? "ring-2 ring-blue-500" : ""}`}
             >
-              <div className="text-xs text-blue-600 font-medium mb-1">No. of CR's</div>
+              <div className="text-sm text-blue-600 font-bold mb-1">No. of CR's</div>
               <div className="text-xl font-bold text-blue-700">
                 {(() => {
                   // Use the same data source as getListForView("noOfCrs")
@@ -838,7 +838,7 @@ export default function CDMADashboard({
               onClick={() => setSelectedView("allWorks")}
               className={`bg-purple-50 border border-purple-200 rounded-lg p-3 cursor-pointer hover:bg-purple-100 transition ${selectedView === "allWorks" ? "ring-2 ring-purple-500" : ""}`}
             >
-              <div className="text-xs text-purple-600 font-medium mb-1">No. of Works</div>
+              <div className="text-sm text-purple-600 font-bold mb-1">No. of Works</div>
               <div className="text-xl font-bold text-purple-700">
                 {forwardedSubmissions.filter(s => {
                   const status = (s.status || "").trim().toLowerCase();
@@ -854,7 +854,7 @@ export default function CDMADashboard({
               onClick={() => setSelectedView("pending")}
               className={`bg-yellow-50 border border-yellow-200 rounded-lg p-3 cursor-pointer hover:bg-yellow-100 transition ${selectedView === "pending" ? "ring-2 ring-yellow-500" : ""}`}
             >
-              <div className="text-xs text-yellow-600 font-medium mb-1">No. of Pending</div>
+              <div className="text-sm text-yellow-600 font-bold mb-1">No. of Pending</div>
               <div className="text-xl font-bold text-yellow-700">
                 {pendingList.length}
               </div>
@@ -865,7 +865,7 @@ export default function CDMADashboard({
               onClick={() => setSelectedView("approved")}
               className={`bg-green-50 border border-green-200 rounded-lg p-3 cursor-pointer hover:bg-green-100 transition ${selectedView === "approved" ? "ring-2 ring-green-500" : ""}`}
             >
-              <div className="text-xs text-green-600 font-medium mb-1">No. of Approved</div>
+              <div className="text-sm text-green-600 font-bold mb-1">No. of Approved</div>
               <div className="text-xl font-bold text-green-700">
                 {approvedList.length}
               </div>
@@ -876,7 +876,7 @@ export default function CDMADashboard({
               onClick={() => setSelectedView("rejected")}
               className={`bg-red-50 border border-red-200 rounded-lg p-3 cursor-pointer hover:bg-red-100 transition ${selectedView === "rejected" ? "ring-2 ring-red-500" : ""}`}
             >
-              <div className="text-xs text-red-600 font-medium mb-1">No. of Rejected</div>
+              <div className="text-sm text-red-600 font-bold mb-1">No. of Rejected</div>
               <div className="text-xl font-bold text-red-700">
                 {rejectedList.length}
               </div>

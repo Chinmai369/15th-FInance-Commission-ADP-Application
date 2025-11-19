@@ -1260,7 +1260,7 @@ export default function EEPHDashboard({
               onClick={() => setSelectedView("noOfCrs")}
               className={`bg-blue-50 border border-blue-200 rounded-lg p-3 cursor-pointer hover:bg-blue-100 transition ${selectedView === "noOfCrs" ? "ring-2 ring-blue-500" : ""}`}
             >
-              <div className="text-xs text-blue-600 font-medium mb-1">No. of CR's</div>
+              <div className="text-sm text-blue-600 font-bold mb-1">No. of CR's</div>
               <div className="text-xl font-bold text-blue-700">
                 {(() => {
                   // Use the same data source as getListForView("noOfCrs")
@@ -1288,7 +1288,7 @@ export default function EEPHDashboard({
               onClick={() => setSelectedView("allWorks")}
               className={`bg-purple-50 border border-purple-200 rounded-lg p-3 cursor-pointer hover:bg-purple-100 transition ${selectedView === "allWorks" ? "ring-2 ring-purple-500" : ""}`}
             >
-              <div className="text-xs text-purple-600 font-medium mb-1">No. of Works</div>
+              <div className="text-sm text-purple-600 font-bold mb-1">No. of Works</div>
               <div className="text-xl font-bold text-purple-700">
                 {forwardedSubmissions.filter(s => {
                   const status = (s.status || "").trim().toLowerCase();
@@ -1305,7 +1305,7 @@ export default function EEPHDashboard({
               onClick={() => setSelectedView("pending")}
               className={`bg-yellow-50 border border-yellow-200 rounded-lg p-3 cursor-pointer hover:bg-yellow-100 transition ${selectedView === "pending" ? "ring-2 ring-yellow-500" : ""}`}
             >
-              <div className="text-xs text-yellow-600 font-medium mb-1">No. of Pending</div>
+              <div className="text-sm text-yellow-600 font-bold mb-1">No. of Pending</div>
               <div className="text-xl font-bold text-yellow-700">
                 {pendingList.length}
               </div>
@@ -1316,7 +1316,7 @@ export default function EEPHDashboard({
               onClick={() => setSelectedView("forwarded")}
               className={`bg-indigo-50 border border-indigo-200 rounded-lg p-3 cursor-pointer hover:bg-indigo-100 transition ${selectedView === "forwarded" ? "ring-2 ring-indigo-500" : ""}`}
             >
-              <div className="text-xs text-indigo-600 font-medium mb-1">No. of Forwarded</div>
+              <div className="text-sm text-indigo-600 font-bold mb-1">No. of Forwarded</div>
               <div className="text-xl font-bold text-indigo-700">
                 {forwardedList.length}
               </div>
@@ -1327,7 +1327,7 @@ export default function EEPHDashboard({
               onClick={() => setSelectedView("rejected")}
               className={`bg-red-50 border border-red-200 rounded-lg p-3 cursor-pointer hover:bg-red-100 transition ${selectedView === "rejected" ? "ring-2 ring-red-500" : ""}`}
             >
-              <div className="text-xs text-red-600 font-medium mb-1">No. of Rejected</div>
+              <div className="text-sm text-red-600 font-bold mb-1">No. of Rejected</div>
               <div className="text-xl font-bold text-red-700">
                 {rejectedList.filter(s => s.status === "EEPH Rejected").length}
               </div>
@@ -1338,7 +1338,7 @@ export default function EEPHDashboard({
               onClick={() => setSelectedView("sentBackRejected")}
               className={`bg-orange-50 border border-orange-200 rounded-lg p-3 cursor-pointer hover:bg-orange-100 transition ${selectedView === "sentBackRejected" ? "ring-2 ring-orange-500" : ""}`}
             >
-              <div className="text-xs text-orange-600 font-medium mb-1">Sent back REJECTED LIST</div>
+              <div className="text-sm text-orange-600 font-bold mb-1 whitespace-nowrap">Sent Back Rejected List</div>
               <div className="text-xl font-bold text-orange-700">
                 {forwardedSubmissions.filter(s => s.status === "SEPH Rejected").length}
               </div>

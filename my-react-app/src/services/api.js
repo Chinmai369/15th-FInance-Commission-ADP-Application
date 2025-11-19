@@ -253,6 +253,74 @@ export const verifyToken = async () => {
   }
 };
 
+// Send OTP API call
+export const sendOTP = async (mobile) => {
+  console.log("\n");
+  console.log("═══════════════════════════════════════════════════");
+  console.log("📱 FRONTEND: SEND OTP REQUEST");
+  console.log("   - Mobile:", mobile);
+  console.log("⏰ Request Time:", new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }));
+  
+  try {
+    const response = await apiRequest("/send-otp", {
+      method: "POST",
+      body: JSON.stringify({ mobile }),
+    });
+
+    console.log("✅ FRONTEND: OTP SENT SUCCESSFULLY");
+    console.log("   - Message:", response.message);
+    console.log("═══════════════════════════════════════════════════");
+    console.log("\n");
+    
+    return response;
+  } catch (error) {
+    console.log("❌ FRONTEND: SEND OTP FAILED");
+    console.log("   - Error message:", error.message);
+    console.log("═══════════════════════════════════════════════════");
+    console.log("\n");
+    throw error;
+  }
+};
+
+// Verify OTP API call
+export const verifyOTP = async (mobile, otp) => {
+  console.log("\n");
+  console.log("═══════════════════════════════════════════════════");
+  console.log("🔐 FRONTEND: VERIFY OTP REQUEST");
+  console.log("   - Mobile:", mobile);
+  console.log("   - OTP:", "***");
+  console.log("⏰ Request Time:", new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }));
+  
+  try {
+    const response = await apiRequest("/verify-otp", {
+      method: "POST",
+      body: JSON.stringify({ mobile, otp }),
+    });
+
+    if (response.success && response.token) {
+      setAuth(response.token, response.user);
+      
+      console.log("✅ FRONTEND: OTP VERIFIED SUCCESSFULLY");
+      console.log("   - User:", response.user.username);
+      console.log("   - Role:", response.user.role);
+      console.log("   - Token received and stored");
+      console.log("⏰ Login Time:", new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }));
+      console.log("═══════════════════════════════════════════════════");
+      console.log("\n");
+      
+      return response;
+    }
+
+    throw new Error(response.message || "OTP verification failed");
+  } catch (error) {
+    console.log("❌ FRONTEND: OTP VERIFICATION FAILED");
+    console.log("   - Error message:", error.message);
+    console.log("═══════════════════════════════════════════════════");
+    console.log("\n");
+    throw error;
+  }
+};
+
 // Logout API call (with server-side logging)
 export const logout = async () => {
   const token = getToken();
