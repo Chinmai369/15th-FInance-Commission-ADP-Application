@@ -42,10 +42,14 @@ function App() {
   // Save forwardedSubmissions to localStorage whenever it changes
   useEffect(() => {
     // Skip saving if array is empty (to avoid overwriting with empty data on initial load)
+    // But allow saving if we're updating existing data (when length changes from non-zero to non-zero)
     if (forwardedSubmissions.length === 0) {
       console.log("⏭️ App: Skipping save to localStorage (empty array)");
       return;
     }
+    
+    console.log("💾 App: Preparing to save forwardedSubmissions to localStorage");
+    console.log("   - Count:", forwardedSubmissions.length);
     
     try {
       // Filter out any File objects before saving (they can't be serialized)

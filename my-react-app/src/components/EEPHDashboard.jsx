@@ -349,6 +349,73 @@ export default function EEPHDashboard({
     }
   }, [location.pathname, logout]);
 
+  // Load data from localStorage on mount and sync periodically
+  useEffect(() => {
+    console.log("🔄 EEPH: Setting up localStorage sync");
+    
+    const loadFromStorage = () => {
+      try {
+        const stored = localStorage.getItem('forwardedSubmissions');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const currentCount = forwardedSubmissions?.length || 0;
+          
+          console.log("🔄 EEPH: Checking localStorage");
+          console.log("   - localStorage count:", parsed.length);
+          console.log("   - Current prop count:", currentCount);
+          
+          // Log all submissions in localStorage
+          if (parsed.length > 0) {
+            console.log("   - All submissions in localStorage:");
+            parsed.forEach((s, idx) => {
+              console.log(`      ${idx + 1}. ID: ${s.id}, Status: "${s.status}", Section: "${s.forwardedTo?.section || 'none'}"`);
+            });
+          }
+          
+          // Always update if localStorage has data and current is empty or different
+          if (parsed.length > 0 && (currentCount === 0 || parsed.length !== currentCount)) {
+            console.log("🔄 EEPH: Syncing from localStorage");
+            setForwardedSubmissions(parsed);
+            return true;
+          } else if (parsed.length === 0) {
+            console.log("🔄 EEPH: localStorage is empty");
+          }
+        } else {
+          console.log("🔄 EEPH: No data in localStorage");
+        }
+      } catch (error) {
+        console.error("❌ EEPH: Error loading from localStorage:", error);
+      }
+      return false;
+    };
+    
+    // Load on mount
+    console.log("🔄 EEPH: Loading from localStorage on mount");
+    loadFromStorage();
+    
+    // Also check periodically (every 3 seconds)
+    const interval = setInterval(() => {
+      console.log("🔄 EEPH: Periodic check (every 3s)");
+      loadFromStorage();
+    }, 3000);
+    
+    // Listen for storage events (cross-tab updates)
+    const handleStorage = (e) => {
+      if (e.key === 'forwardedSubmissions') {
+        console.log("🔄 EEPH: Storage event detected");
+        loadFromStorage();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    
+    return () => {
+      console.log("🔄 EEPH: Cleaning up localStorage sync");
+      clearInterval(interval);
+      window.removeEventListener('storage', handleStorage);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
+
   // Log when forwardedSubmissions prop changes
   useEffect(() => {
     console.log("🔄 EEPH: forwardedSubmissions prop changed");
