@@ -488,10 +488,10 @@ export default function ENCPHDashboard({
   };
 
   // Handle logout confirmation
-  const handleLogoutConfirm = () => {
+  const handleLogoutConfirm = async () => {
     setShowLogoutModal(false);
     if (logoutCallback) {
-      logoutCallback();
+      await logoutCallback();
       setLogoutCallback(null);
     }
   };
@@ -506,8 +506,10 @@ export default function ENCPHDashboard({
   useEffect(() => {
     const handler = (event) => {
       if (location.pathname !== "/") {
-        showLogoutConfirmation(() => {
-          logout?.();
+        showLogoutConfirmation(async () => {
+          if (logout) {
+            await logout();
+          }
           navigate("/", { replace: true });
         });
         window.history.pushState(null, "", window.location.pathname);
@@ -524,12 +526,15 @@ export default function ENCPHDashboard({
       window.history.state &&
       document.referrer && !document.referrer.includes("/login")
     ) {
-      showLogoutConfirmation(() => {
-        logout?.();
+      showLogoutConfirmation(async () => {
+        if (logout) {
+          await logout();
+        }
+        navigate("/", { replace: true });
       });
       window.history.go(1);
     }
-  }, [location.pathname, logout]);
+  }, [location.pathname, logout, navigate]);
 
   // --- Modal ---
   const openPreview = (sub) => {
@@ -922,11 +927,11 @@ export default function ENCPHDashboard({
               e.preventDefault();
               e.stopPropagation();
             }
-            showLogoutConfirmation(() => {
+            showLogoutConfirmation(async () => {
               if (logout) {
-                logout();
+                await logout();
               }
-              window.location.href = "/";
+              navigate("/", { replace: true });
             });
           }}
         />
