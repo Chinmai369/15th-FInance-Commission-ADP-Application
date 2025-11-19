@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { login, validateUsername, sendOTP, verifyOTP } from "../services/api";
 
@@ -22,6 +22,39 @@ export default function Login({ onLogin }) {
   const [verifyingOTP, setVerifyingOTP] = useState(false);
   
   const navigate = useNavigate();
+
+  // Automatically send OTP when mobile number is verified
+  useEffect(() => {
+    if (usernameVerified && loginMode === "mobile" && !otpSent && !sendingOTP) {
+      // Automatically send OTP when mobile is verified
+      const sendOTPAuto = async () => {
+        setSendingOTP(true);
+        setOtpError("");
+        setOtpSentMessage("");
+
+        try {
+          const response = await sendOTP(username.trim());
+          if (response.success) {
+            setOtpSent(true);
+            setOtpSentMessage("OTP sent successfully");
+            // Auto-focus first OTP input field
+            setTimeout(() => {
+              const firstInput = document.getElementById("otp-0");
+              if (firstInput) {
+                firstInput.focus();
+              }
+            }, 100);
+          }
+        } catch (error) {
+          setOtpError(error.message || "Failed to send OTP. Please try again.");
+        } finally {
+          setSendingOTP(false);
+        }
+      };
+      
+      sendOTPAuto();
+    }
+  }, [usernameVerified, loginMode, username, otpSent, sendingOTP]);
 
   // Handle login mode change
   const handleModeChange = (mode) => {
@@ -528,23 +561,13 @@ export default function Login({ onLogin }) {
           {/* OTP Flow for Mobile Login */}
           {usernameVerified && loginMode === "mobile" && (
             <>
-              {/* Send OTP Button */}
-              {!otpSent && (
-                <div>
-                  <button
-                    type="button"
-                    onClick={handleSendOTP}
-                    disabled={sendingOTP}
-                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg shadow-md transition-all"
-                  >
-                    {sendingOTP ? "Sending OTP..." : "Send OTP"}
-                  </button>
-                  {otpError && !otpSentMessage && (
-                    <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
-                      <span>⚠</span>
-                      {otpError}
-                    </p>
-                  )}
+              {/* Show loading message while sending OTP */}
+              {sendingOTP && !otpSent && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-700 flex items-center gap-2">
+                    <span className="text-blue-600 font-bold">⏳</span>
+                    Sending OTP...
+                  </p>
                 </div>
               )}
 
@@ -558,8 +581,16 @@ export default function Login({ onLogin }) {
                 </div>
               )}
 
-              {/* OTP Input Fields */}
-              {otpSent && (
+              {/* Show error if OTP sending failed */}
+              {otpError && !otpSent && !sendingOTP && (
+                <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                  <span>⚠</span>
+                  {otpError}
+                </p>
+              )}
+
+              {/* OTP Input Fields - Show when OTP is sent or while sending */}
+              {(otpSent || sendingOTP) && (
                 <div>
                   <label className="text-gray-700 text-sm font-medium">Enter OTP</label>
                   <div className="flex gap-2 mt-2" onPaste={handleOtpPaste}>
@@ -573,8 +604,9 @@ export default function Login({ onLogin }) {
                         value={digit}
                         onChange={(e) => handleOtpChange(index, e.target.value)}
                         onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                        disabled={sendingOTP}
                         className={`w-full h-14 text-center text-xl font-semibold border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none ${
-                          otpError ? "border-red-500 bg-red-50" : "border-gray-300"
+                          otpError ? "border-red-500 bg-red-50" : sendingOTP ? "border-gray-300 bg-gray-100 cursor-not-allowed" : "border-gray-300"
                         }`}
                         placeholder="0"
                       />
