@@ -301,6 +301,13 @@ export default function AdminDashboard({
   // Function to show custom alert
   const showAlert = (message, type = "info") => {
     setAlertModal({ show: true, message, type });
+    
+    // Auto-dismiss success messages after 3 seconds (no OK button needed)
+    if (type === "success") {
+      setTimeout(() => {
+        setAlertModal({ show: false, message: "", type: "info" });
+      }, 3000);
+    }
   };
   
   // Function to close alert
@@ -941,14 +948,8 @@ export default function AdminDashboard({
       
       console.log("✅ Admin: Form cleared");
       
-      // Show alert
-      showAlert("Forwarded successfully!", "success");
-      
-      // Set banner message
-      setSuccessMsg("Forwarded to Commissioner!");
-    
-      // Clear message after 5 seconds
-      setTimeout(() => setSuccessMsg(""), 5000);
+      // Show alert message (auto-dismisses after 3 seconds)
+      showAlert("Task is forwarded successfully", "success");
       
       console.log("✅ Admin: Forward to commissioner completed successfully");
     } catch (error) {
@@ -1170,19 +1171,21 @@ export default function AdminDashboard({
                 </div>
               </div>
             </div>
-            <div className="flex justify-end">
-              <button
-                onClick={closeAlert}
-                className={`px-4 py-2 text-white rounded-md hover:opacity-90 transition-colors font-medium ${
-                  alertModal.type === "success" ? "bg-green-600 hover:bg-green-700" :
-                  alertModal.type === "error" ? "bg-red-600 hover:bg-red-700" :
-                  alertModal.type === "warning" ? "bg-yellow-600 hover:bg-yellow-700" :
-                  "bg-blue-600 hover:bg-blue-700"
-                }`}
-              >
-                OK
-              </button>
-            </div>
+            {/* Only show OK button for non-success messages */}
+            {alertModal.type !== "success" && (
+              <div className="flex justify-end">
+                <button
+                  onClick={closeAlert}
+                  className={`px-4 py-2 text-white rounded-md hover:opacity-90 transition-colors font-medium ${
+                    alertModal.type === "error" ? "bg-red-600 hover:bg-red-700" :
+                    alertModal.type === "warning" ? "bg-yellow-600 hover:bg-yellow-700" :
+                    "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  OK
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

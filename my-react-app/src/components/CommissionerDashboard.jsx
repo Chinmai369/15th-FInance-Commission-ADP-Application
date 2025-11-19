@@ -223,6 +223,13 @@ export default function CommissionerDashboard({
   // Function to show custom alert
   const showAlert = (message, type = "info") => {
     setAlertModal({ show: true, message, type });
+    
+    // Auto-dismiss success messages after 3 seconds (no OK button needed)
+    if (type === "success") {
+      setTimeout(() => {
+        setAlertModal({ show: false, message: "", type: "info" });
+      }, 3000);
+    }
   };
   
   // Function to close alert
@@ -1086,14 +1093,8 @@ export default function CommissionerDashboard({
     // Reset forwardConfirmed when closing
     setForwardConfirmed(false);
     
-    // Show alert
-    showAlert("Forwarded successfully!", "success");
-    
-    // Set banner message
-    setForwardSuccess(`✅ Successfully Forwarded to ${section}!`);
-    setTimeout(() => {
-      setForwardSuccess("");
-    }, 5000);
+    // Show alert message (auto-dismisses after 3 seconds)
+    showAlert("Task is forwarded successfully", "success");
   };
 
   // --- Bulk Forward ---
@@ -1135,14 +1136,8 @@ export default function CommissionerDashboard({
     setForwardRemarks("");
     setForwardConfirmed(false);
     
-    // Show alert
-    showAlert("Forwarded successfully!", "success");
-    
-    // Set banner message
-    setForwardSuccess(`✅ Successfully Forwarded ${count} work(s) to ${section}!`);
-    setTimeout(() => {
-      setForwardSuccess("");
-    }, 5000);
+    // Show alert message (auto-dismisses after 3 seconds)
+    showAlert("Task is forwarded successfully", "success");
   };
 
 
@@ -1273,19 +1268,21 @@ export default function CommissionerDashboard({
                 </div>
               </div>
             </div>
-            <div className="flex justify-end">
-              <button
-                onClick={closeAlert}
-                className={`px-4 py-2 text-white rounded-md hover:opacity-90 transition-colors font-medium ${
-                  alertModal.type === "success" ? "bg-green-600 hover:bg-green-700" :
-                  alertModal.type === "error" ? "bg-red-600 hover:bg-red-700" :
-                  alertModal.type === "warning" ? "bg-yellow-600 hover:bg-yellow-700" :
-                  "bg-blue-600 hover:bg-blue-700"
-                }`}
-              >
-                OK
-              </button>
-            </div>
+            {/* Only show OK button for non-success messages */}
+            {alertModal.type !== "success" && (
+              <div className="flex justify-end">
+                <button
+                  onClick={closeAlert}
+                  className={`px-4 py-2 text-white rounded-md hover:opacity-90 transition-colors font-medium ${
+                    alertModal.type === "error" ? "bg-red-600 hover:bg-red-700" :
+                    alertModal.type === "warning" ? "bg-yellow-600 hover:bg-yellow-700" :
+                    "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  OK
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1306,18 +1303,6 @@ export default function CommissionerDashboard({
           <h2 className="font-semibold text-gray-700 mb-4">
             Commissioner Dashboard
           </h2>
-          
-          {/* Debug Info */}
-          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs">
-            <strong>Debug Info:</strong> forwardedSubmissions count: {forwardedSubmissions?.length || 0} | 
-            pendingList count: {pendingList.length} | 
-            selectedView: {selectedView}
-            {forwardedSubmissions && forwardedSubmissions.length > 0 && (
-              <div className="mt-2">
-                Statuses: {forwardedSubmissions.map(s => s.status).join(", ")}
-              </div>
-            )}
-          </div>
 
           {/* Statistics Cards */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
