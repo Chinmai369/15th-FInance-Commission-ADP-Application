@@ -1012,7 +1012,44 @@ export default function AdminDashboard({
         </svg>
       )
     },
+    { 
+      id: "createNewAdp", 
+      label: "Create New ADP", 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+      )
+    },
   ];
+
+  // Handle menu item selection - open form when "Create New ADP" is selected
+  useEffect(() => {
+    if (selectedMenuItem === "createNewAdp") {
+      setShowFiltersAndForm(true);
+      setFormError("");
+      setSelectedView(null); // Clear selected view when opening form
+    } else if (selectedMenuItem === "dashboard") {
+      // When switching to dashboard, close form if open
+      if (showFiltersAndForm) {
+        setShowFiltersAndForm(false);
+        setShowWorkForm(false);
+        setSelection({ year: "", installment: "", grantType: "", program: "" });
+        setFormError("");
+        resetForm();
+      }
+      // Set default view to show approved works table by default when dashboard is selected
+      setSelectedView("cdmaApproved");
+    } else if (selectedMenuItem !== "createNewAdp" && showFiltersAndForm) {
+      // Close form when other menu items are selected
+      setShowFiltersAndForm(false);
+      setShowWorkForm(false);
+      setSelectedView(null);
+      setSelection({ year: "", installment: "", grantType: "", program: "" });
+      setFormError("");
+      resetForm();
+    }
+  }, [selectedMenuItem]);
 
   return (
     <div className="min-h-screen bg-gray-50 overflow-x-hidden">
@@ -1172,7 +1209,8 @@ export default function AdminDashboard({
         {/* Heading */}
         <h2 className="text-2xl font-semibold text-gray-800 mb-4 text-center">ADP Works Dashboard</h2>
 
-        {/* Statistics Cards */}
+        {/* Statistics Cards - Show only when Dashboard is selected */}
+        {selectedMenuItem === "dashboard" && (
         <div className="bg-white rounded-xl shadow p-6 border mb-6">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             {/* No. of CR's */}
@@ -1244,40 +1282,19 @@ export default function AdminDashboard({
             </div>
           </div>
         </div>
+        )}
 
-        {/* selection chips */}
+        {/* selection chips - Show only when form is open */}
+        {showFiltersAndForm && (
         <div className="mb-4 flex flex-wrap gap-2">
           {selection.year && <div className="px-3 py-1 rounded-full bg-gray-100 text-sm">{selection.year}</div>}
           {selection.installment && <div className="px-3 py-1 rounded-full bg-gray-100 text-sm">{selection.installment}</div>}
           {selection.grantType && <div className="px-3 py-1 rounded-full bg-gray-100 text-sm">{selection.grantType}</div>}
           {selection.program && <div className="px-3 py-1 rounded-full bg-gray-100 text-sm">{selection.program}</div>}
         </div>
+        )}
 
-        {/* Create New ADP Button */}
-        <div className="mb-4">
-          <button
-            onClick={() => {
-              if (showFiltersAndForm) {
-                // Hide everything and reset to initial state
-                setShowFiltersAndForm(false);
-                setShowWorkForm(false);
-                setSelectedView(null);
-                setSelection({ year: "", installment: "", grantType: "", program: "" });
-                setFormError("");
-                resetForm();
-              } else {
-                // Show filters and form area
-                setShowFiltersAndForm(true);
-                setFormError("");
-              }
-            }}
-            className="px-6 py-3 text-base font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
-          >
-            Create New ADP
-          </button>
-        </div>
-
-        {/* Filters and Form Area - Show only after clicking Create New ADP */}
+        {/* Filters and Form Area - Show only after clicking Create New ADP from menu */}
         {showFiltersAndForm && (
           <>
             {/* Filters */}
@@ -1961,8 +1978,8 @@ export default function AdminDashboard({
           </>
         )}
 
-        {/* Dynamic Table based on selected view - Show only after clicking Create New ADP and a card */}
-        {showFiltersAndForm && selectedView && (() => {
+        {/* Dynamic Table based on selected view - Show when Dashboard is selected and a card is clicked */}
+        {selectedMenuItem === "dashboard" && selectedView && (() => {
           const currentList = getListForView(selectedView);
           const filteredList = applyFilters(currentList);
           const viewTitle = getViewTitle(selectedView);
