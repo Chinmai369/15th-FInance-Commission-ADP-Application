@@ -8,85 +8,96 @@ import SEPHDashboard from "./components/SEPHDashboard";
 import ENCPHDashboard from "./components/ENCPHDashboard";
 import CDMADashboard from "./components/CDMADashboard";
 import { getUser, isAuthenticated, logout as apiLogout } from "./services/api";
+import { 
+  initDB, 
+  saveToIndexedDB, 
+  loadFromIndexedDB, 
+  migrateFromLocalStorage,
+  getStorageInfo 
+} from "./services/storage";
 import "./App.css";
 
 function App() {
-  // Load forwardedSubmissions from localStorage on mount
-  const [forwardedSubmissions, setForwardedSubmissions] = useState(() => {
-    try {
-      const stored = localStorage.getItem('forwardedSubmissions');
-      console.log("📦 App: Attempting to load from localStorage");
-      console.log("   - Stored value exists:", !!stored);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        console.log("📦 App: Loaded forwardedSubmissions from localStorage:", parsed.length);
-        console.log("   - Sample submission:", parsed[0] ? {
-          id: parsed[0].id,
-          status: parsed[0].status,
-          section: parsed[0].forwardedTo?.section,
-          proposal: parsed[0].proposal?.substring(0, 30)
-        } : "none");
-        return parsed;
-      } else {
-        console.log("📦 App: No data in localStorage, starting with empty array");
-      }
-    } catch (error) {
-      console.error("❌ App: Error loading forwardedSubmissions from localStorage:", error);
-      console.error("   - Error details:", error.message);
-    }
-    return [];
-  });
-  
+  const [forwardedSubmissions, setForwardedSubmissions] = useState([]);
   const [user, setUser] = useState(null);
+  const [storageType, setStorageType] = useState('indexeddb'); // 'indexeddb' or 'localstorage'
   
-  // Save forwardedSubmissions to localStorage whenever it changes
+  // Save forwardedSubmissions to storage whenever it changes
   useEffect(() => {
     // Skip saving if array is empty (to avoid overwriting with empty data on initial load)
-    // But allow saving if we're updating existing data (when length changes from non-zero to non-zero)
     if (forwardedSubmissions.length === 0) {
-      console.log("⏭️ App: Skipping save to localStorage (empty array)");
+      console.log("⏭️ App: Skipping save (empty array)");
       return;
     }
     
-    console.log("💾 App: Preparing to save forwardedSubmissions to localStorage");
+    console.log("💾 App: Preparing to save forwardedSubmissions");
     console.log("   - Count:", forwardedSubmissions.length);
+    console.log("   - Storage type:", storageType);
     
-    try {
-      // Filter out any File objects before saving (they can't be serialized)
-      const serializable = forwardedSubmissions.map(s => {
-        const { workImage, detailedReport, committeeReport, councilResolution, ...rest } = s;
-        return {
-          ...rest,
-          // Only include file properties if they're strings (base64), not File objects
-          workImage: typeof workImage === 'string' ? workImage : (workImage ? '[File Object]' : null),
-          detailedReport: typeof detailedReport === 'string' ? detailedReport : (detailedReport ? '[File Object]' : null),
-          committeeReport: typeof committeeReport === 'string' ? committeeReport : (committeeReport ? '[File Object]' : null),
-          councilResolution: typeof councilResolution === 'string' ? councilResolution : (councilResolution ? '[File Object]' : null),
-        };
-      });
-      const jsonString = JSON.stringify(serializable);
-      localStorage.setItem('forwardedSubmissions', jsonString);
-      console.log("💾 App: Saved forwardedSubmissions to localStorage:", forwardedSubmissions.length);
-      console.log("   - JSON size:", (jsonString.length / 1024).toFixed(2), "KB");
-      console.log("   - Sample submission in save:", serializable[0] ? {
-        id: serializable[0].id,
-        status: serializable[0].status,
-        section: serializable[0].forwardedTo?.section
-      } : "none");
-    } catch (error) {
-      console.error("❌ App: Error saving forwardedSubmissions to localStorage:", error);
-      // If error is due to size, try to clear and save again
-      if (error.name === 'QuotaExceededError') {
-        console.warn("⚠️ App: localStorage quota exceeded, clearing old data");
+    // Filter out any File objects before saving (they can't be serialized)
+    const serializable = forwardedSubmissions.map(s => {
+      const { workImage, detailedReport, committeeReport, councilResolution, ...rest } = s;
+      return {
+        ...rest,
+        // Only include file properties if they're strings (base64), not File objects
+        workImage: typeof workImage === 'string' ? workImage : (workImage ? '[File Object]' : null),
+        detailedReport: typeof detailedReport === 'string' ? detailedReport : (detailedReport ? '[File Object]' : null),
+        committeeReport: typeof committeeReport === 'string' ? committeeReport : (committeeReport ? '[File Object]' : null),
+        councilResolution: typeof councilResolution === 'string' ? councilResolution : (councilResolution ? '[File Object]' : null),
+      };
+    });
+
+    // Save to IndexedDB (preferred) or localStorage (fallback)
+    if (storageType === 'indexeddb') {
+      saveToIndexedDB(serializable).catch(error => {
+        console.error("❌ App: Error saving to IndexedDB, falling back to localStorage:", error);
+        // Fallback to localStorage
         try {
-          localStorage.removeItem('forwardedSubmissions');
-          localStorage.setItem('forwardedSubmissions', JSON.stringify(forwardedSubmissions.slice(-50))); // Keep only last 50
+          const jsonString = JSON.stringify(serializable);
+          localStorage.setItem('forwardedSubmissions', jsonString);
+          setStorageType('localstorage');
+          console.log("💾 App: Saved to localStorage (fallback):", forwardedSubmissions.length);
         } catch (e) {
-          console.error("❌ App: Failed to save even after clearing:", e);
+          console.error("❌ App: Error saving to localStorage:", e);
+          if (e.name === 'QuotaExceededError') {
+            console.warn("⚠️ App: localStorage quota exceeded");
+            try {
+              localStorage.removeItem('forwardedSubmissions');
+              localStorage.setItem('forwardedSubmissions', JSON.stringify(serializable.slice(-50)));
+            } catch (err) {
+              console.error("❌ App: Failed to save even after clearing:", err);
+            }
+          }
+        }
+      });
+    } else {
+      // Save to localStorage
+      try {
+        const jsonString = JSON.stringify(serializable);
+        localStorage.setItem('forwardedSubmissions', jsonString);
+        console.log("💾 App: Saved to localStorage:", forwardedSubmissions.length);
+        console.log("   - JSON size:", (jsonString.length / 1024).toFixed(2), "KB");
+      } catch (error) {
+        console.error("❌ App: Error saving to localStorage:", error);
+        if (error.name === 'QuotaExceededError') {
+          console.warn("⚠️ App: localStorage quota exceeded, trying IndexedDB");
+          // Try IndexedDB as fallback
+          saveToIndexedDB(serializable).then(() => {
+            setStorageType('indexeddb');
+            console.log("✅ App: Successfully saved to IndexedDB");
+          }).catch(e => {
+            console.error("❌ App: Failed to save to IndexedDB:", e);
+            try {
+              localStorage.removeItem('forwardedSubmissions');
+              localStorage.setItem('forwardedSubmissions', JSON.stringify(serializable.slice(-50)));
+            } catch (err) {
+              console.error("❌ App: Failed to save even after clearing:", err);
+            }
+          });
         }
       }
     }
-  }, [forwardedSubmissions]);
+  }, [forwardedSubmissions, storageType]);
   
   // Log when forwardedSubmissions state changes
   useEffect(() => {
@@ -99,32 +110,76 @@ function App() {
     })));
   }, [forwardedSubmissions]);
 
-  // Check if user is authenticated on mount and reload forwardedSubmissions
+  // Initialize storage and load data on mount
   useEffect(() => {
-    if (isAuthenticated()) {
-      const storedUser = getUser();
-      if (storedUser) {
-        setUser(storedUser);
-      }
-    }
-    
-    // Also reload forwardedSubmissions from localStorage when component mounts
-    // This ensures data is available even if state was reset
-    try {
-      const stored = localStorage.getItem('forwardedSubmissions');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        console.log("🔄 App: Reloading forwardedSubmissions from localStorage on mount:", parsed.length);
-        if (parsed.length > 0) {
-          console.log("🔄 App: Setting forwardedSubmissions from localStorage");
-          setForwardedSubmissions(parsed);
+    const initializeStorage = async () => {
+      // Check if user is authenticated
+      if (isAuthenticated()) {
+        const storedUser = getUser();
+        if (storedUser) {
+          setUser(storedUser);
         }
-      } else {
-        console.log("🔄 App: No data in localStorage to reload");
       }
-    } catch (error) {
-      console.error("❌ App: Error reloading forwardedSubmissions:", error);
-    }
+      
+      // Try to initialize IndexedDB and load data
+      try {
+        await initDB();
+        const indexedData = await loadFromIndexedDB();
+        
+        if (indexedData && indexedData.length > 0) {
+          console.log("✅ App: Loaded from IndexedDB:", indexedData.length, "items");
+          setForwardedSubmissions(indexedData);
+          setStorageType('indexeddb');
+        } else {
+          // Check localStorage and migrate if data exists
+          const stored = localStorage.getItem('forwardedSubmissions');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed.length > 0) {
+              console.log("📦 App: Found data in localStorage, migrating to IndexedDB:", parsed.length);
+              await migrateFromLocalStorage();
+              setForwardedSubmissions(parsed);
+              setStorageType('indexeddb');
+            } else {
+              console.log("📦 App: No data to load");
+            }
+          } else {
+            console.log("📦 App: No data in storage");
+          }
+        }
+      } catch (error) {
+        console.error("❌ App: Error initializing IndexedDB, using localStorage:", error);
+        // Fallback to localStorage
+        try {
+          const stored = localStorage.getItem('forwardedSubmissions');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            console.log("📦 App: Loaded from localStorage (fallback):", parsed.length);
+            setForwardedSubmissions(parsed);
+            setStorageType('localstorage');
+          }
+        } catch (e) {
+          console.error("❌ App: Error loading from localStorage:", e);
+        }
+      }
+      
+      // Log storage info
+      try {
+        const storageInfo = await getStorageInfo();
+        if (storageInfo) {
+          console.log("💾 Storage Info:", {
+            quota: (storageInfo.quota / 1024 / 1024).toFixed(2) + " MB",
+            usage: (storageInfo.usage / 1024 / 1024).toFixed(2) + " MB",
+            available: (storageInfo.available / 1024 / 1024).toFixed(2) + " MB",
+            percentage: storageInfo.percentage + "%"
+          });
+        }
+      } catch (error) {
+        console.log("⚠️ App: Could not get storage info");
+      }
+    };
+    
+    initializeStorage();
   }, []);
 
   // Handle login
