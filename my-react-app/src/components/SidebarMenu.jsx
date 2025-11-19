@@ -84,28 +84,37 @@ export default function SidebarMenu({
         </div>
         <nav className="p-2 space-y-1">
           {filteredMenuItems.length > 0 ? (
-            filteredMenuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                onMenuItemSelect(item.id);
-              }}
-              className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-left transition-all duration-200 ${
-                selectedMenuItem === item.id
-                  ? "bg-emerald-600 text-white font-semibold shadow-lg transform scale-[1.02] border-l-4 border-emerald-300"
-                  : "text-slate-300 hover:bg-slate-700 hover:text-white hover:shadow-md hover:translate-x-1"
-              }`}
-            >
-              <span className="flex items-center justify-center w-5 h-5 flex-shrink-0">
-                {typeof item.icon === 'string' ? (
-                  <span className="text-lg">{item.icon}</span>
-                ) : (
-                  item.icon
-                )}
-              </span>
-              <span className="text-xs font-medium">{item.label}</span>
-            </button>
-            ))
+            filteredMenuItems.map((item) => {
+              const isCreateNewAdp = item.id === "createNewAdp";
+              const isSelected = selectedMenuItem === item.id;
+              
+              return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  onMenuItemSelect(item.id);
+                }}
+                className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-left transition-all duration-200 ${
+                  isSelected
+                    ? isCreateNewAdp
+                      ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold shadow-xl transform scale-[1.02] border-l-4 border-yellow-400 ring-2 ring-blue-400"
+                      : "bg-emerald-600 text-white font-semibold shadow-lg transform scale-[1.02] border-l-4 border-emerald-300"
+                    : isCreateNewAdp
+                      ? "bg-gradient-to-r from-blue-700/80 to-blue-800/80 text-white font-bold shadow-lg border-l-4 border-yellow-400/60 hover:from-blue-600 hover:to-blue-700 hover:shadow-xl hover:scale-[1.02] hover:border-yellow-400"
+                      : "text-slate-300 hover:bg-slate-700 hover:text-white hover:shadow-md hover:translate-x-1"
+                }`}
+              >
+                <span className="flex items-center justify-center w-5 h-5 flex-shrink-0">
+                  {typeof item.icon === 'string' ? (
+                    <span className="text-lg">{item.icon}</span>
+                  ) : (
+                    item.icon
+                  )}
+                </span>
+                <span className="text-xs font-medium">{item.label}</span>
+              </button>
+              );
+            })
           ) : (
             <div className="px-2.5 py-1.5 text-slate-400 text-xs text-center">
               No menu items found
