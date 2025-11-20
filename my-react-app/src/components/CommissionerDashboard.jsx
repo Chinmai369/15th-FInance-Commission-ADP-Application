@@ -266,6 +266,19 @@ export default function CommissionerDashboard({
   const [selectedMenuItem, setSelectedMenuItem] = useState("dashboard");
   const [isMenuOpen, setIsMenuOpen] = useState(true);
 
+  // Add Position Modal state
+  const [showAddPositionModal, setShowAddPositionModal] = useState(false);
+  const [positionRole, setPositionRole] = useState("");
+  const [positionLevel, setPositionLevel] = useState("");
+  const [positionName, setPositionName] = useState("");
+  const [positions, setPositions] = useState([]);
+
+  // User Assign Modal state
+  const [showUserAssignModal, setShowUserAssignModal] = useState(false);
+  const [selectedPositionId, setSelectedPositionId] = useState(null);
+  const [userAssignRole, setUserAssignRole] = useState("");
+  const [userAssignUser, setUserAssignUser] = useState("");
+
   const menuItems = [
     { 
       id: "dashboard", 
@@ -309,6 +322,15 @@ export default function CommissionerDashboard({
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+        </svg>
+      )
+    },
+    { 
+      id: "workflow", 
+      label: "Work Flow Management", 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
         </svg>
       )
     },
@@ -1299,7 +1321,85 @@ export default function CommissionerDashboard({
         {/* Main Content Area */}
         <div className={`flex-1 p-6 pt-4 transition-all duration-300 min-w-0 ${isMenuOpen ? 'ml-64' : 'ml-0'}`}>
           <div className="max-w-[95%] mx-auto">
-            <div className="bg-white p-6 rounded-xl shadow border">
+            {/* Work Flow Management Content */}
+            {selectedMenuItem === "workflow" ? (
+              <div className="bg-white p-6 rounded-xl shadow border">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="font-semibold text-gray-700">
+                    Work Flow Management
+                  </h2>
+                  <button 
+                    onClick={() => setShowAddPositionModal(true)}
+                    className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                  >
+                    Add Position
+                  </button>
+                </div>
+
+                {/* Positions Table */}
+                <div className="mt-6 overflow-x-auto">
+                  <table className="w-full border-collapse border border-gray-300">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-300 p-3 text-left text-sm font-semibold text-gray-700">S.No</th>
+                        <th className="border border-gray-300 p-3 text-left text-sm font-semibold text-gray-700">Position Name</th>
+                        <th className="border border-gray-300 p-3 text-left text-sm font-semibold text-gray-700">Level</th>
+                        <th className="border border-gray-300 p-3 text-left text-sm font-semibold text-gray-700">Emp code</th>
+                        <th className="border border-gray-300 p-3 text-left text-sm font-semibold text-gray-700">Emp name</th>
+                        <th className="border border-gray-300 p-3 text-left text-sm font-semibold text-gray-700">User Assign</th>
+                        <th className="border border-gray-300 p-3 text-left text-sm font-semibold text-gray-700">Remove Position</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {positions.length === 0 ? (
+                        <tr>
+                          <td colSpan="7" className="border border-gray-300 p-4 text-center text-gray-500">
+                            No positions added yet. Click "Add Position" to add a new position.
+                          </td>
+                        </tr>
+                      ) : (
+                        positions.map((position, index) => (
+                          <tr key={position.id} className="hover:bg-gray-50">
+                            <td className="border border-gray-300 p-3 text-sm">{index + 1}</td>
+                            <td className="border border-gray-300 p-3 text-sm">{position.name}</td>
+                            <td className="border border-gray-300 p-3 text-sm">{position.level}</td>
+                            <td className="border border-gray-300 p-3 text-sm">{position.empCode || "-"}</td>
+                            <td className="border border-gray-300 p-3 text-sm">{position.empName || "-"}</td>
+                            <td className="border border-gray-300 p-3 text-sm">
+                              <button 
+                                className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                                onClick={() => {
+                                  setSelectedPositionId(position.id);
+                                  setUserAssignRole(position.role);
+                                  setUserAssignUser("");
+                                  setShowUserAssignModal(true);
+                                }}
+                              >
+                                User Assign
+                              </button>
+                            </td>
+                            <td className="border border-gray-300 p-3 text-sm">
+                              <button 
+                                className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                                onClick={() => {
+                                  if (window.confirm("Are you sure you want to remove this position?")) {
+                                    setPositions(positions.filter(p => p.id !== position.id));
+                                    showAlert("Position removed successfully!", "success");
+                                  }
+                                }}
+                              >
+                                Remove Position
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white p-6 rounded-xl shadow border">
           <h2 className="font-semibold text-gray-700 mb-4">
             Commissioner Dashboard
           </h2>
@@ -2562,8 +2662,10 @@ export default function CommissionerDashboard({
             </div>
           )}
 
-            </div>
+              </div>
+            )}
           </div>
+        </div>
 
         {/* Modal */}
         {modalOpen && previewSubmission && (
@@ -2803,7 +2905,229 @@ export default function CommissionerDashboard({
             </div>
           </div>
         )}
-        </div>
+
+        {/* Add Position Modal */}
+        {showAddPositionModal && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4">
+            <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 overflow-auto max-h-[90vh]">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold text-lg">Add Position</h3>
+                <button
+                  onClick={() => {
+                    setShowAddPositionModal(false);
+                    setPositionRole("");
+                    setPositionLevel("");
+                    setPositionName("");
+                  }}
+                  className="px-3 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-gray-600 font-medium block mb-2">
+                    Select Level <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    className="w-full border p-3 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={positionRole}
+                    onChange={(e) => setPositionRole(e.target.value)}
+                  >
+                    <option value="">Select Level</option>
+                    <option value="EEPH">EEPH</option>
+                    <option value="SEPH">SEPH</option>
+                    <option value="ENCPH">ENCPH</option>
+                    <option value="CDMA">CDMA</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm text-gray-600 font-medium block mb-2">
+                    Select Role <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    className="w-full border p-3 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={positionLevel}
+                    onChange={(e) => setPositionLevel(e.target.value)}
+                  >
+                    <option value="">Select Role</option>
+                    <option value="middlelvelofficer-1">middlelvelofficer-1</option>
+                    <option value="middlelevelofficer-2">middlelevelofficer-2</option>
+                    <option value="middlelevelofficer-3">middlelevelofficer-3</option>
+                    <option value="middlelevelofficer-4">middlelevelofficer-4</option>
+                    <option value="middlelevelofficer-5">middlelevelofficer-5</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm text-gray-600 font-medium block mb-2">
+                    Position Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full border p-3 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter Position Name"
+                    value={positionName}
+                    onChange={(e) => setPositionName(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowAddPositionModal(false);
+                    setPositionRole("");
+                    setPositionLevel("");
+                    setPositionName("");
+                  }}
+                  className="px-5 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (positionRole && positionLevel && positionName) {
+                      // Add position to the array
+                      const newPosition = {
+                        id: Date.now(), // Unique ID
+                        role: positionRole,
+                        level: positionLevel,
+                        name: positionName,
+                        empCode: "",
+                        empName: ""
+                      };
+                      setPositions([...positions, newPosition]);
+                      showAlert("Position added successfully!", "success");
+                      setShowAddPositionModal(false);
+                      setPositionRole("");
+                      setPositionLevel("");
+                      setPositionName("");
+                    } else {
+                      showAlert("Please fill in all required fields", "error");
+                    }
+                  }}
+                  className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* User Assign Modal */}
+        {showUserAssignModal && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4">
+            <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 overflow-auto max-h-[90vh]">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold text-lg">User Assign</h3>
+                <button
+                  onClick={() => {
+                    setShowUserAssignModal(false);
+                    setSelectedPositionId(null);
+                    setUserAssignRole("");
+                    setUserAssignUser("");
+                  }}
+                  className="px-3 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-gray-600 font-medium block mb-2">
+                    Select Role <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    className="w-full border p-3 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={userAssignRole}
+                    onChange={(e) => setUserAssignRole(e.target.value)}
+                  >
+                    <option value="">Select Role</option>
+                    <option value="middlelvelofficer-1">middlelvelofficer-1</option>
+                    <option value="middlelevelofficer-2">middlelevelofficer-2</option>
+                    <option value="middlelevelofficer-3">middlelevelofficer-3</option>
+                    <option value="middlelevelofficer-4">middlelevelofficer-4</option>
+                    <option value="middlelevelofficer-5">middlelevelofficer-5</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm text-gray-600 font-medium block mb-2">
+                    Select Employee <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    className="w-full border p-3 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={userAssignUser}
+                    onChange={(e) => setUserAssignUser(e.target.value)}
+                    disabled={!userAssignRole}
+                  >
+                    <option value="">Select Employee</option>
+                    {userAssignRole && (
+                      <>
+                        <option value="EMP001|John Doe">John Doe (EMP001)</option>
+                        <option value="EMP002|Jane Smith">Jane Smith (EMP002)</option>
+                        <option value="EMP003|Robert Johnson">Robert Johnson (EMP003)</option>
+                        <option value="EMP004|Emily Davis">Emily Davis (EMP004)</option>
+                        <option value="EMP005|Michael Wilson">Michael Wilson (EMP005)</option>
+                        <option value="EMP006|Sarah Brown">Sarah Brown (EMP006)</option>
+                        <option value="EMP007|David Miller">David Miller (EMP007)</option>
+                        <option value="EMP008|Lisa Anderson">Lisa Anderson (EMP008)</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowUserAssignModal(false);
+                    setSelectedPositionId(null);
+                    setUserAssignRole("");
+                    setUserAssignUser("");
+                  }}
+                  className="px-5 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (userAssignRole && userAssignUser) {
+                      // Update the position with user assignment
+                      const selectedPosition = positions.find(p => p.id === selectedPositionId);
+                      if (selectedPosition) {
+                        // Extract employee code and name from user selection
+                        // Format: "EMP001|John Doe"
+                        const [empCode, empName] = userAssignUser.split("|");
+                        
+                        setPositions(positions.map(p => 
+                          p.id === selectedPositionId 
+                            ? { ...p, empCode, empName }
+                            : p
+                        ));
+                        showAlert("User assigned successfully!", "success");
+                        setShowUserAssignModal(false);
+                        setSelectedPositionId(null);
+                        setUserAssignRole("");
+                        setUserAssignUser("");
+                      }
+                    } else {
+                      showAlert("Please fill in all required fields", "error");
+                    }
+                  }}
+                  className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

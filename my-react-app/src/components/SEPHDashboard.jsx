@@ -885,6 +885,10 @@ export default function SEPHDashboard({
       showAlert("Select department and section", "error");
       return;
     }
+    if (!forwardConfirmed) {
+      showAlert("Please check 'Scrutinized and Recommended' before forwarding", "error");
+      return;
+    }
 
     const count = bulkApprovedItems.length;
 
@@ -916,6 +920,7 @@ export default function SEPHDashboard({
     setDept("");
     setSection("");
     setForwardRemarks("");
+    setForwardConfirmed(false);
     
     // Show alert message (auto-dismisses after 3 seconds)
     showAlert("Task is forwarded successfully", "success");
@@ -1897,12 +1902,25 @@ export default function SEPHDashboard({
                         {forwardSuccess}
                       </div>
                     )}
+                    <div className="flex items-center gap-2 mt-4">
+                      <input
+                        type="checkbox"
+                        id="forwardConfirmedSEPH"
+                        checked={forwardConfirmed}
+                        onChange={(e) => setForwardConfirmed(e.target.checked)}
+                        className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                      />
+                      <label htmlFor="forwardConfirmedSEPH" className="text-sm text-gray-700 font-medium">
+                        Scrutinized and Recommended
+                      </label>
+                    </div>
                     <div className="flex justify-end gap-3 mt-6">
                       <button
                         onClick={() => {
                           setShowApprovePanel(false);
                           setApproveRemarks("");
                           setApprovalConfirmed(false);
+                          setForwardConfirmed(false);
                           setPreviewSubmission(null);
                           setDept("");
                           setSection("");
@@ -1914,9 +1932,9 @@ export default function SEPHDashboard({
                       </button>
                 <button
                   onClick={forwardApprovedToDept}
-                        disabled={!dept || !section}
+                        disabled={!dept || !section || !forwardConfirmed}
                         className={`px-5 py-2 rounded ${
-                          !dept || !section
+                          !dept || !section || !forwardConfirmed
                             ? "bg-gray-400 cursor-not-allowed"
                             : "bg-green-600 hover:bg-green-700"
                         } text-white`}
@@ -2423,6 +2441,18 @@ export default function SEPHDashboard({
                     {forwardSuccess}
                   </div>
                 )}
+                <div className="flex items-center gap-2 mt-4">
+                  <input
+                    type="checkbox"
+                    id="bulkForwardConfirmedSEPH"
+                    checked={forwardConfirmed}
+                    onChange={(e) => setForwardConfirmed(e.target.checked)}
+                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                  />
+                  <label htmlFor="bulkForwardConfirmedSEPH" className="text-sm text-gray-700 font-medium">
+                    Scrutinized and Recommended
+                  </label>
+                </div>
                 <div className="flex justify-end gap-3 mt-6">
                   <button
                     onClick={() => {
@@ -2431,6 +2461,7 @@ export default function SEPHDashboard({
                       setDept("");
                       setSection("");
                       setForwardRemarks("");
+                      setForwardConfirmed(false);
                     }}
                     className="px-5 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
                   >
@@ -2438,9 +2469,9 @@ export default function SEPHDashboard({
                   </button>
                   <button
                     onClick={forwardBulkApprovedToDept}
-                    disabled={!dept || !section}
+                    disabled={!dept || !section || !forwardConfirmed}
                     className={`px-5 py-2 rounded ${
-                      !dept || !section
+                      !dept || !section || !forwardConfirmed
                         ? "bg-gray-400 cursor-not-allowed"
                         : "bg-green-600 hover:bg-green-700"
                     } text-white`}
