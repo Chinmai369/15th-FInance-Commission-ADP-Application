@@ -295,6 +295,10 @@ export default function AdminDashboard({
   const [showWorkForm, setShowWorkForm] = useState(false);
   const [showFiltersAndForm, setShowFiltersAndForm] = useState(false);
   
+  // Preview and verification state
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
+  
   // Alert modal state
   const [alertModal, setAlertModal] = useState({ show: false, message: "", type: "info" });
   
@@ -441,6 +445,7 @@ export default function AdminDashboard({
 
   // Helper: reset the form (optionally keep numberOfWorks when activeCR present)
   function resetForm(keepNumberOfWorks = false) {
+    setIsVerified(false); // Reset verification checkbox
     setWorkType("");
     setProposalName("");
     setArea("");
@@ -945,6 +950,7 @@ export default function AdminDashboard({
       setCrDate("");
       setActiveCR(null);
       setIsEditing(false); // Clear editing state after forwarding
+      setIsVerified(false); // Reset verification checkbox
       
       console.log("✅ Admin: Form cleared");
       
@@ -1816,6 +1822,290 @@ export default function AdminDashboard({
                 </div>
               </div>
 
+              {/* Preview Button */}
+              {numberOfWorks && (submissions.length + (isEditing ? 1 : 0)) >= Number(numberOfWorks) && committeeFile && councilFile && (
+                <div className="mt-8 pt-6 border-t border-gray-200">
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => {
+                        setShowPreviewModal(true);
+                        setIsVerified(false); // Reset verification when opening preview
+                      }}
+                      className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                      Preview Before Forwarding
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Preview Modal */}
+              {showPreviewModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 overflow-y-auto">
+                  <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full p-6 my-8 max-h-[90vh] overflow-y-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
+                    {/* Modal Header */}
+                    <div className="flex justify-between items-center mb-6 pb-4 border-b-2 border-gray-300">
+                      <h2 className="text-2xl font-bold text-gray-800">Preview Before Forwarding</h2>
+                      <button
+                        onClick={() => {
+                          setShowPreviewModal(false);
+                          setIsVerified(false);
+                        }}
+                        className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                      >
+                        ×
+                      </button>
+                    </div>
+
+                    {/* PDF-like Preview Container */}
+                    <div className="bg-white border-2 border-gray-300 rounded-lg shadow-lg p-6 mb-4">
+                      {/* Header */}
+                      <div className="text-center mb-6 pb-4 border-b-2 border-gray-400">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-2">15th Finance Commission</h2>
+                        <p className="text-sm text-gray-600">Government of Andhra Pradesh</p>
+                        <p className="text-sm text-gray-600 mt-1">Work Submission Preview</p>
+                      </div>
+
+                      {/* Selection Details */}
+                      <div className="mb-6">
+                        <h4 className="text-lg font-semibold text-gray-800 mb-3 pb-2 border-b border-gray-300">Selection Details</h4>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="font-semibold text-gray-700">Year:</span>
+                            <span className="ml-2 text-gray-900">{selection.year || "-"}</span>
+                          </div>
+                          <div>
+                            <span className="font-semibold text-gray-700">Installment:</span>
+                            <span className="ml-2 text-gray-900">{selection.installment || "-"}</span>
+                          </div>
+                          <div>
+                            <span className="font-semibold text-gray-700">Grant Type:</span>
+                            <span className="ml-2 text-gray-900">{selection.grantType || "-"}</span>
+                          </div>
+                          <div>
+                            <span className="font-semibold text-gray-700">Program:</span>
+                            <span className="ml-2 text-gray-900">{selection.program || "-"}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* CR Details */}
+                      {crStatus === "CR" && (
+                        <div className="mb-6">
+                          <h4 className="text-lg font-semibold text-gray-800 mb-3 pb-2 border-b border-gray-300">CR Details</h4>
+                          <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <span className="font-semibold text-gray-700">CR Number:</span>
+                              <span className="ml-2 text-gray-900">{crNumber || "-"}</span>
+                            </div>
+                            <div>
+                              <span className="font-semibold text-gray-700">CR Date:</span>
+                              <span className="ml-2 text-gray-900">{crDate || "-"}</span>
+                            </div>
+                            <div>
+                              <span className="font-semibold text-gray-700">Number of Works:</span>
+                              <span className="ml-2 text-gray-900">{numberOfWorks || "-"}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Submissions Summary */}
+                      <div className="mb-6">
+                        <h4 className="text-lg font-semibold text-gray-800 mb-3 pb-2 border-b border-gray-300">Works Summary</h4>
+                        <div className="text-sm mb-3">
+                          <span className="font-semibold text-gray-700">Total Works Submitted:</span>
+                          <span className="ml-2 text-gray-900">{submissions.length + (isEditing ? 1 : 0)}</span>
+                        </div>
+                        <div className="text-sm mb-3">
+                          <span className="font-semibold text-gray-700">Total Estimated Cost:</span>
+                          <span className="ml-2 text-gray-900">{fmtINR(totalSubmittedCost)}</span>
+                        </div>
+                        
+                        {/* Works List with Images and PDFs */}
+                        <div className="mt-4">
+                          {submissions.map((sub, idx) => {
+                            const workImageUrl = getFileUrl(sub.workImage);
+                            const detailedReportUrl = getFileUrl(sub.detailedReport);
+                            return (
+                              <div key={sub.id || idx} className="mb-4 p-3 border border-gray-300 rounded-lg">
+                                <h5 className="font-semibold text-gray-800 mb-2 text-sm">Work {idx + 1}</h5>
+                                <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+                                  <div>
+                                    <span className="font-semibold text-gray-700">Sector:</span>
+                                    <span className="ml-1 text-gray-900">{sub.sector || "-"}</span>
+                                  </div>
+                                  <div>
+                                    <span className="font-semibold text-gray-700">Cost:</span>
+                                    <span className="ml-1 text-gray-900">{fmtINR(sub.cost || 0)}</span>
+                                  </div>
+                                  <div>
+                                    <span className="font-semibold text-gray-700">Priority:</span>
+                                    <span className="ml-1 text-gray-900">{sub.priority || "-"}</span>
+                                  </div>
+                                </div>
+                                <div className="mb-2 text-xs">
+                                  <span className="font-semibold text-gray-700">Proposal:</span>
+                                  <span className="ml-1 text-gray-900">{sub.proposal || "-"}</span>
+                                </div>
+                                
+                                {/* Location Details */}
+                                <div className="mb-2 text-xs">
+                                  <span className="font-semibold text-gray-700">Location Details:</span>
+                                  <div className="ml-1 text-gray-900 mt-1">
+                                    {sub.wardNo && <span>Ward No: {sub.wardNo}</span>}
+                                    {sub.area && <span className={sub.wardNo ? " ml-2" : ""}>Area: {sub.area}</span>}
+                                    {sub.locality && <span className={(sub.wardNo || sub.area) ? " ml-2" : ""}>Locality: {sub.locality}</span>}
+                                    {!sub.wardNo && !sub.area && !sub.locality && <span>-</span>}
+                                  </div>
+                                  {sub.latlong && (
+                                    <div className="ml-1 text-gray-900 mt-1">
+                                      <span className="font-semibold text-gray-700">Lat/Long: </span>
+                                      <span className="text-xs">{sub.latlong}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                {/* Work Image */}
+                                {workImageUrl && (
+                                  <div className="mb-2">
+                                    <span className="font-semibold text-gray-700 text-xs block mb-1">Work Image:</span>
+                                    <div className="border border-gray-300 rounded p-1 inline-block">
+                                      {isImageFile(sub.workImage) ? (
+                                        <img
+                                          src={workImageUrl}
+                                          alt="Work"
+                                          className="max-w-full max-h-32 rounded cursor-pointer hover:opacity-90"
+                                          onClick={() => window.open(workImageUrl, '_blank')}
+                                        />
+                                      ) : (
+                                        <FilePreview file={sub.workImage} defaultName="work-image.jpg" />
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Detailed Report PDF */}
+                                {detailedReportUrl && (
+                                  <div className="mb-2">
+                                    <span className="font-semibold text-gray-700 text-xs block mb-1">Estimation Report:</span>
+                                    <div className="border border-gray-300 rounded p-1 inline-block">
+                                      <FilePreview file={sub.detailedReport} defaultName="estimation-report.pdf" />
+                                      <a
+                                        href={detailedReportUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:text-blue-800 text-xs underline ml-1"
+                                      >
+                                        View PDF
+                                      </a>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Committee and Council Files */}
+                      <div className="mb-4">
+                        <h4 className="text-lg font-semibold text-gray-800 mb-3 pb-2 border-b border-gray-300">Attached Documents</h4>
+                        <div className="grid grid-cols-1 gap-4">
+                          {/* Committee Report */}
+                          {committeeFile && (
+                            <div className="p-3 border border-gray-300 rounded">
+                              <span className="font-semibold text-gray-700 text-sm block mb-2">Committee Report:</span>
+                              <div className="flex items-center gap-2">
+                                <FilePreview file={committeeFile} defaultName="committee-report.pdf" />
+                                <a
+                                  href={getFileUrl(committeeFile)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 text-xs underline"
+                                >
+                                  View PDF
+                                </a>
+                                <span className="text-green-600 text-xs">✓ Uploaded</span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Council Resolution */}
+                          {councilFile && (
+                            <div className="p-3 border border-gray-300 rounded">
+                              <span className="font-semibold text-gray-700 text-sm block mb-2">Council Resolution:</span>
+                              <div className="flex items-center gap-2">
+                                <FilePreview file={councilFile} defaultName="council-resolution.pdf" />
+                                <a
+                                  href={getFileUrl(councilFile)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 text-xs underline"
+                                >
+                                  View PDF
+                                </a>
+                                <span className="text-green-600 text-xs">✓ Uploaded</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Footer */}
+                      <div className="mt-6 pt-4 border-t-2 border-gray-400 text-xs text-gray-600 text-center">
+                        <p>This is a preview of the submission. Please verify all details before forwarding.</p>
+                      </div>
+                    </div>
+
+                    {/* Verification Checkbox */}
+                    <div className="mb-4 flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <input
+                        type="checkbox"
+                        id="verifyCheckbox"
+                        checked={isVerified}
+                        onChange={(e) => setIsVerified(e.target.checked)}
+                        className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                      />
+                      <label htmlFor="verifyCheckbox" className="text-sm font-medium text-gray-700 cursor-pointer">
+                        I have verified all the details in the preview above and confirm that the information is correct.
+                      </label>
+                    </div>
+
+                    {/* OK and Cancel Buttons */}
+                    <div className="flex justify-end gap-3 mt-4">
+                      <button
+                        onClick={() => {
+                          setShowPreviewModal(false);
+                          setIsVerified(false);
+                        }}
+                        className="px-6 py-2.5 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-md font-medium transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (isVerified) {
+                            setShowPreviewModal(false);
+                            // isVerified remains true, enabling the forward button
+                          } else {
+                            showAlert("Please check the verification checkbox before proceeding.", "error");
+                          }
+                        }}
+                        disabled={!isVerified}
+                        className={`px-6 py-2.5 rounded-md font-medium transition-colors ${
+                          isVerified
+                            ? "bg-green-600 hover:bg-green-700 text-white"
+                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        }`}
+                      >
+                        OK
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Forward Section */}
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <div className="flex flex-col items-end gap-3">
@@ -1831,16 +2121,17 @@ export default function AdminDashboard({
                   )}
                   <button
                     onClick={handleForwardToCommissioner}
-                    disabled={!numberOfWorks || (submissions.length + (isEditing ? 1 : 0)) < Number(numberOfWorks) || !committeeFile || !councilFile}
+                    disabled={!numberOfWorks || (submissions.length + (isEditing ? 1 : 0)) < Number(numberOfWorks) || !committeeFile || !councilFile || !isVerified}
                     className={`px-6 py-2.5 rounded-md font-medium transition-colors focus:ring-2 focus:ring-offset-2 ${
-                      (!numberOfWorks || (submissions.length + (isEditing ? 1 : 0)) < Number(numberOfWorks) || !committeeFile || !councilFile) 
+                      (!numberOfWorks || (submissions.length + (isEditing ? 1 : 0)) < Number(numberOfWorks) || !committeeFile || !councilFile || !isVerified) 
                         ? "bg-gray-300 text-gray-500 cursor-not-allowed" 
                         : "bg-green-600 hover:bg-green-700 text-white focus:ring-green-500"
                     }`}
                     title={!numberOfWorks ? "Please enter Number of Works" : 
                            (submissions.length + (isEditing ? 1 : 0)) < Number(numberOfWorks) ? 
                            `You need to submit ${Number(numberOfWorks) - (submissions.length + (isEditing ? 1 : 0))} more work(s) before forwarding` :
-                           !committeeFile || !councilFile ? "Please upload committee and council files" : 
+                           !committeeFile || !councilFile ? "Please upload committee and council files" :
+                           !isVerified ? "Please verify the preview by checking the verification checkbox" :
                            "Ready to forward"}
                   >
                     Forward to Commissioner
