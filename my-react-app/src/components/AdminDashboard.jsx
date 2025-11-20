@@ -1386,7 +1386,7 @@ export default function AdminDashboard({
             <div className="bg-white rounded-xl shadow p-6 border">
               <div className="flex justify-between items-center">
                 <div className="flex gap-3 items-center">
-                  <div className="text-sm text-gray-600">Budget</div>
+                  <div className="text-sm text-gray-600">Released Amount</div>
                   <div className="font-bold text-lg text-green-500">{fmtINR(TOTAL_BUDGET)}</div>
                 </div>
                 <div>
