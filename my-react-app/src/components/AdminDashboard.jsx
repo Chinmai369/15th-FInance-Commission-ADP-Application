@@ -298,6 +298,7 @@ export default function AdminDashboard({
   // Preview and verification state
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
+  const [verificationConfirmed, setVerificationConfirmed] = useState(false);
   
   // Alert modal state
   const [alertModal, setAlertModal] = useState({ show: false, message: "", type: "info" });
@@ -951,6 +952,7 @@ export default function AdminDashboard({
       setActiveCR(null);
       setIsEditing(false); // Clear editing state after forwarding
       setIsVerified(false); // Reset verification checkbox
+      setVerificationConfirmed(false); // Reset verification confirmation
       
       console.log("✅ Admin: Form cleared");
       
@@ -1830,6 +1832,7 @@ export default function AdminDashboard({
                       onClick={() => {
                         setShowPreviewModal(true);
                         setIsVerified(false); // Reset verification when opening preview
+                        setVerificationConfirmed(false); // Reset confirmation when opening preview
                       }}
                       className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                     >
@@ -1850,6 +1853,7 @@ export default function AdminDashboard({
                         onClick={() => {
                           setShowPreviewModal(false);
                           setIsVerified(false);
+                          setVerificationConfirmed(false); // Reset confirmation when closing
                         }}
                         className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
                       >
@@ -1860,10 +1864,23 @@ export default function AdminDashboard({
                     {/* PDF-like Preview Container */}
                     <div className="bg-white border-2 border-gray-300 rounded-lg shadow-lg p-6 mb-4">
                       {/* Header */}
-                      <div className="text-center mb-6 pb-4 border-b-2 border-gray-400">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-2">15th Finance Commission</h2>
-                        <p className="text-sm text-gray-600">Government of Andhra Pradesh</p>
-                        <p className="text-sm text-gray-600 mt-1">Work Submission Preview</p>
+                      <div className="mb-6 pb-4 border-b-2 border-gray-400">
+                        <div className="flex items-center gap-4">
+                          {/* Logo on the left */}
+                          <div className="flex-shrink-0">
+                            <img 
+                              src="/ap-logo.jpeg" 
+                              alt="AP Government Logo" 
+                              className="w-24 h-24 rounded object-contain"
+                            />
+                          </div>
+                          {/* Text content centered */}
+                          <div className="flex-1 text-center">
+                            <h2 className="text-2xl font-bold text-gray-800 mb-1">15th Finance Commission</h2>
+                            <p className="text-sm text-gray-600">Government of Andhra Pradesh</p>
+                            <p className="text-sm text-gray-600 mt-1">Work Submission Preview</p>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Selection Details */}
@@ -2078,6 +2095,7 @@ export default function AdminDashboard({
                         onClick={() => {
                           setShowPreviewModal(false);
                           setIsVerified(false);
+                          setVerificationConfirmed(false); // Reset confirmation on cancel
                         }}
                         className="px-6 py-2.5 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-md font-medium transition-colors"
                       >
@@ -2087,7 +2105,7 @@ export default function AdminDashboard({
                         onClick={() => {
                           if (isVerified) {
                             setShowPreviewModal(false);
-                            // isVerified remains true, enabling the forward button
+                            setVerificationConfirmed(true); // Mark as confirmed when OK is clicked
                           } else {
                             showAlert("Please check the verification checkbox before proceeding.", "error");
                           }
@@ -2121,9 +2139,9 @@ export default function AdminDashboard({
                   )}
                   <button
                     onClick={handleForwardToCommissioner}
-                    disabled={!numberOfWorks || (submissions.length + (isEditing ? 1 : 0)) < Number(numberOfWorks) || !committeeFile || !councilFile || !isVerified}
+                    disabled={!numberOfWorks || (submissions.length + (isEditing ? 1 : 0)) < Number(numberOfWorks) || !committeeFile || !councilFile || !verificationConfirmed}
                     className={`px-6 py-2.5 rounded-md font-medium transition-colors focus:ring-2 focus:ring-offset-2 ${
-                      (!numberOfWorks || (submissions.length + (isEditing ? 1 : 0)) < Number(numberOfWorks) || !committeeFile || !councilFile || !isVerified) 
+                      (!numberOfWorks || (submissions.length + (isEditing ? 1 : 0)) < Number(numberOfWorks) || !committeeFile || !councilFile || !verificationConfirmed) 
                         ? "bg-gray-300 text-gray-500 cursor-not-allowed" 
                         : "bg-green-600 hover:bg-green-700 text-white focus:ring-green-500"
                     }`}
@@ -2131,7 +2149,7 @@ export default function AdminDashboard({
                            (submissions.length + (isEditing ? 1 : 0)) < Number(numberOfWorks) ? 
                            `You need to submit ${Number(numberOfWorks) - (submissions.length + (isEditing ? 1 : 0))} more work(s) before forwarding` :
                            !committeeFile || !councilFile ? "Please upload committee and council files" :
-                           !isVerified ? "Please verify the preview by checking the verification checkbox" :
+                           !verificationConfirmed ? "Please verify the preview by checking the checkbox and clicking OK" :
                            "Ready to forward"}
                   >
                     Forward to Commissioner
