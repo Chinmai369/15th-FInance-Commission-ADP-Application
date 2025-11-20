@@ -219,6 +219,13 @@ export default function CDMADashboard({
   const [approveRemarks, setApproveRemarks] = useState("");
   const [selectedView, setSelectedView] = useState("pending"); // For card-based navigation
 
+  // Multiple selection states for bulk operations
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [showBulkRejectModal, setShowBulkRejectModal] = useState(false);
+  const [bulkRejectRemarks, setBulkRejectRemarks] = useState("");
+  const [showBulkApproveModal, setShowBulkApproveModal] = useState(false);
+  const [bulkApproveRemarks, setBulkApproveRemarks] = useState("");
+
   // Menu state
   const [selectedMenuItem, setSelectedMenuItem] = useState("dashboard");
   const [isMenuOpen, setIsMenuOpen] = useState(true);
@@ -348,6 +355,11 @@ export default function CDMADashboard({
     const rejected = forwardedSubmissions.filter((s) => s.status === "CDMA Rejected");
     setRejectedList(rejected);
   }, [forwardedSubmissions]);
+
+  // Clear selected items when view changes
+  useEffect(() => {
+    setSelectedItems([]);
+  }, [selectedView]);
 
   // Helper functions for view
   const getListForView = (view) => {
@@ -680,6 +692,98 @@ export default function CDMADashboard({
   const isActionDisabled = (status) =>
     ["CDMA Approved", "CDMA Rejected"].includes(status);
 
+  // --- Bulk Operations ---
+  // Toggle select all
+  const toggleSelectAll = () => {
+    const currentList = getListForView(selectedView);
+    const filteredList = applyFilters(currentList);
+    const eligibleItems = filteredList
+      .filter(s => !isActionDisabled(s.status))
+      .map(s => s.id);
+    
+    if (selectedItems.length === eligibleItems.length && eligibleItems.length > 0) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems([...eligibleItems]);
+    }
+  };
+
+  // Toggle individual item selection
+  const toggleItemSelection = (itemId) => {
+    if (selectedItems.includes(itemId)) {
+      setSelectedItems(selectedItems.filter(id => id !== itemId));
+    } else {
+      setSelectedItems([...selectedItems, itemId]);
+    }
+  };
+
+  // Bulk Approve
+  const handleBulkApprove = () => {
+    if (selectedItems.length === 0) {
+      showAlert("Please select at least one work to approve.", "error");
+      return;
+    }
+    setShowBulkApproveModal(true);
+    setBulkApproveRemarks("");
+  };
+
+  const confirmBulkApprove = () => {
+    if (selectedItems.length === 0) {
+      showAlert("Please select at least one work to approve.", "error");
+      return;
+    }
+
+    const count = selectedItems.length;
+    setForwardedSubmissions((prev) =>
+      prev.map((f) =>
+        selectedItems.includes(f.id) && !isActionDisabled(f.status)
+          ? { ...f, status: "CDMA Approved", remarks: bulkApproveRemarks || "" }
+          : f
+      )
+    );
+    setShowBulkApproveModal(false);
+    setSelectedItems([]);
+    setBulkApproveRemarks("");
+    setApproveBanner(`${count} work(s) approved successfully by CDMA.`);
+    setTimeout(() => setApproveBanner(""), 2000);
+  };
+
+  // Bulk Reject
+  const handleBulkReject = () => {
+    if (selectedItems.length === 0) {
+      showAlert("Please select at least one work to reject.", "error");
+      return;
+    }
+    setShowBulkRejectModal(true);
+    setBulkRejectRemarks("");
+  };
+
+  const confirmBulkReject = () => {
+    if (selectedItems.length === 0) {
+      showAlert("Please select at least one work to reject.", "error");
+      return;
+    }
+
+    if (!bulkRejectRemarks || bulkRejectRemarks.trim() === "") {
+      showAlert("Please enter remarks before rejecting.", "error");
+      return;
+    }
+
+    const count = selectedItems.length;
+    setForwardedSubmissions((prev) =>
+      prev.map((f) =>
+        selectedItems.includes(f.id) && !isActionDisabled(f.status)
+          ? { ...f, status: "CDMA Rejected", remarks: bulkRejectRemarks, rejectedBy: "CDMA" }
+          : f
+      )
+    );
+    setShowBulkRejectModal(false);
+    setSelectedItems([]);
+    setBulkRejectRemarks("");
+    setRejectBanner(`${count} work(s) rejected and sent back to ENCPH.`);
+    setTimeout(() => setRejectBanner(""), 2000);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Fixed Header */}
@@ -913,15 +1017,65 @@ export default function CDMADashboard({
             const viewTitle = getViewTitle(selectedView);
             const uniqueSectors = getUniqueSectors(currentList);
             const uniqueStatuses = getUniqueStatuses(currentList);
+            const showActions = selectedView === "pending";
+            const eligibleItems = filteredList.filter(s => !isActionDisabled(s.status));
+            const allSelected = eligibleItems.length > 0 && eligibleItems.every(s => selectedItems.includes(s.id));
             
             return (
               <>
-                <h3 className="text-sm text-gray-600 mb-4">{viewTitle}</h3>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-sm text-gray-600">{viewTitle}</h3>
+                  {showActions && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleBulkApprove}
+                        disabled={selectedItems.length === 0}
+                        className={`px-4 py-2 text-xs rounded font-medium transition-colors ${
+                          selectedItems.length === 0
+                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            : "bg-green-600 text-white hover:bg-green-700"
+                        }`}
+                      >
+                        Approve Selected ({selectedItems.length})
+                      </button>
+                      <button
+                        onClick={handleBulkReject}
+                        disabled={selectedItems.length === 0}
+                        className={`px-4 py-2 text-xs rounded font-medium transition-colors ${
+                          selectedItems.length === 0
+                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            : "bg-red-600 text-white hover:bg-red-700"
+                        }`}
+                      >
+                        Reject Selected ({selectedItems.length})
+                      </button>
+                      {selectedItems.length > 0 && (
+                        <button
+                          onClick={() => setSelectedItems([])}
+                          className="px-4 py-2 text-xs rounded font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+                        >
+                          Clear Selection
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
                 
                 <div className="overflow-auto max-h-80">
                   <table className="min-w-full text-sm border-collapse border border-gray-300">
                     <thead className="bg-gray-100 border-b border-gray-300">
                       <tr>
+                        {showActions && (
+                          <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">
+                            <input
+                              type="checkbox"
+                              checked={allSelected}
+                              onChange={toggleSelectAll}
+                              className="cursor-pointer"
+                              title="Select All"
+                            />
+                          </th>
+                        )}
                         <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">S.No</th>
                         <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">
                           <div className="flex flex-col gap-1">
@@ -1205,7 +1359,7 @@ export default function CDMADashboard({
                         {(() => {
                           // Show "No results found" message if filteredList is empty
                           if (filteredList.length === 0) {
-                            const columnCount = selectedView === "pending" ? 16 : selectedView === "rejected" ? 16 : 15;
+                            const columnCount = showActions ? (selectedView === "pending" ? 17 : selectedView === "rejected" ? 17 : 16) : (selectedView === "pending" ? 16 : selectedView === "rejected" ? 16 : 15);
                             return (
                               <tr>
                                 <td colSpan={columnCount} className="p-8 text-center text-gray-500 text-sm border-r border-gray-300">
@@ -1235,7 +1389,7 @@ export default function CDMADashboard({
                             
                             // If no groups found, show message
                             if (crGroups.length === 0) {
-                              const columnCount = selectedView === "pending" ? 16 : selectedView === "rejected" ? 16 : 15;
+                              const columnCount = showActions ? (selectedView === "pending" ? 17 : selectedView === "rejected" ? 17 : 16) : (selectedView === "pending" ? 16 : selectedView === "rejected" ? 16 : 15);
                               return (
                               <tr>
                                 <td colSpan={columnCount} className="p-8 text-center text-gray-500 text-sm border-r border-gray-300">
@@ -1287,6 +1441,17 @@ export default function CDMADashboard({
                             // For allWorks view, show serial number for every row
                             return filteredList.map((s, i) => (
                               <tr key={s.id} className="border-b border-gray-300 hover:bg-gray-50">
+                                {showActions && (
+                                  <td className="p-2 text-xs align-top border-r border-gray-300">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedItems.includes(s.id)}
+                                      onChange={() => toggleItemSelection(s.id)}
+                                      disabled={isActionDisabled(s.status)}
+                                      className="cursor-pointer"
+                                    />
+                                  </td>
+                                )}
                                 <td className="p-2 text-xs align-top border-r border-gray-300">{i + 1}</td>
                                 <td className="p-2 text-xs align-top border-r border-gray-300">{s.crNumber || "-"}</td>
                                 <td className="p-2 text-xs align-top border-r border-gray-300">{s.crDate || "-"}</td>
@@ -1319,6 +1484,17 @@ export default function CDMADashboard({
                             // For other views (pending, approved, rejected), show serial number for every row
                             return filteredList.map((s, i) => (
                               <tr key={s.id} className="border-b border-gray-300 hover:bg-gray-50">
+                                {showActions && (
+                                  <td className="p-2 text-xs align-top border-r border-gray-300">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedItems.includes(s.id)}
+                                      onChange={() => toggleItemSelection(s.id)}
+                                      disabled={isActionDisabled(s.status)}
+                                      className="cursor-pointer"
+                                    />
+                                  </td>
+                                )}
                                 <td className="p-2 text-xs align-top border-r border-gray-300">{i + 1}</td>
                                 <td className="p-2 text-xs align-top border-r border-gray-300">{s.crNumber || "-"}</td>
                                 <td className="p-2 text-xs align-top border-r border-gray-300">{s.crDate || "-"}</td>
@@ -1510,6 +1686,107 @@ export default function CDMADashboard({
             </div>
           )}
 
+
+          {/* Bulk Approve Modal */}
+          {showBulkApproveModal && (
+            <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4">
+              <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full p-6 overflow-auto max-h-[90vh]">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-semibold text-lg">Approve {selectedItems.length} Selected Work(s)</h4>
+                  <button
+                    onClick={() => {
+                      setShowBulkApproveModal(false);
+                      setBulkApproveRemarks("");
+                    }}
+                    className="px-3 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">You are about to approve {selectedItems.length} work(s).</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600 font-medium">Remarks (Optional)</label>
+                  <textarea
+                    className="w-full border p-3 rounded mt-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    rows={6}
+                    value={bulkApproveRemarks}
+                    onChange={(e) => setBulkApproveRemarks(e.target.value)}
+                    placeholder="Enter remarks for approval (optional)..."
+                  />
+                </div>
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowBulkApproveModal(false);
+                      setBulkApproveRemarks("");
+                    }}
+                    className="px-5 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmBulkApprove}
+                    className="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  >
+                    Confirm Approval
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Bulk Reject Modal */}
+          {showBulkRejectModal && (
+            <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4">
+              <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-semibold text-lg">Reject {selectedItems.length} Selected Work(s)</h4>
+                  <button
+                    onClick={() => {
+                      setShowBulkRejectModal(false);
+                      setBulkRejectRemarks("");
+                    }}
+                    className="px-3 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">You are about to reject {selectedItems.length} work(s).</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600 font-medium">Remarks (Required)</label>
+                  <textarea
+                    className="w-full border p-3 rounded mt-2 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    rows={6}
+                    value={bulkRejectRemarks}
+                    onChange={(e) => setBulkRejectRemarks(e.target.value)}
+                    placeholder="Please enter reason for rejection..."
+                    required
+                  />
+                </div>
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowBulkRejectModal(false);
+                      setBulkRejectRemarks("");
+                    }}
+                    className="px-5 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmBulkReject}
+                    className="px-5 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                  >
+                    Submit Rejection
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Rejected Table - Only show if viewing default (pending) */}
           {selectedView === "pending" && rejectedList.length > 0 && (
