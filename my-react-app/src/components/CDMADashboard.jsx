@@ -1168,11 +1168,11 @@ export default function CDMADashboard({
                         <th className="p-2 text-left text-xs border-r border-gray-300">
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-1">
-                              <span>Proposal</span>
-                              <button
-                                onClick={() => toggleFilter('proposal')}
-                                className="text-xs"
-                                title="Filter by Proposal"
+                              <span>WorkName</span>
+                                <button
+                                  onClick={() => toggleFilter('proposal')}
+                                  className="text-xs"
+                                  title="Filter by WorkName"
                               >
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                   <circle cx="11" cy="11" r="8"></circle>
@@ -1801,7 +1801,7 @@ export default function CDMADashboard({
                       <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">CR Number</th>
                       <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">CR Date</th>
                       <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">Sector</th>
-                      <th className="p-2 text-left text-xs border-r border-gray-300">Proposal</th>
+                      <th className="p-2 text-left text-xs border-r border-gray-300">WorkName</th>
                       <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">Cost</th>
                       <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">Locality</th>
                       <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">Lat/Long</th>

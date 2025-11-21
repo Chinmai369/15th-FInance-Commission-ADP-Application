@@ -1307,11 +1307,11 @@ export default function ENCPHDashboard({
                         </th>
                         <th className="p-2 text-left text-xs">
                           <div className="flex items-center gap-1">
-                            <span>Proposal</span>
+                            <span>WorkName</span>
                             <button
                               onClick={() => toggleFilter('proposal')}
                               className="text-xs "
-                              title="Filter by Proposal"
+                              title="Filter by WorkName"
                             >
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                   <circle cx="11" cy="11" r="8"></circle>
@@ -1845,7 +1845,7 @@ export default function ENCPHDashboard({
                       <th className="p-2 text-left whitespace-nowrap text-xs">CR Number</th>
                       <th className="p-2 text-left whitespace-nowrap text-xs">CR Date</th>
                       <th className="p-2 text-left whitespace-nowrap text-xs">Sector</th>
-                      <th className="p-2 text-left text-xs">Proposal</th>
+                      <th className="p-2 text-left text-xs">WorkName</th>
                       <th className="p-2 text-left whitespace-nowrap text-xs">Cost</th>
                       <th className="p-2 text-left whitespace-nowrap text-xs">Locality</th>
                       <th className="p-2 text-left whitespace-nowrap text-xs">Lat/Long</th>
