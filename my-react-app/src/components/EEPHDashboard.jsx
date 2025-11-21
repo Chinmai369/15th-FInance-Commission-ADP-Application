@@ -626,14 +626,15 @@ export default function EEPHDashboard({
   // Helper function to format locality display
   const formatLocality = (item) => {
     if (!item) return "";
-    if (item.locality) return item.locality;
-    if (item.area && item.wardNo) {
-      const parts = [];
-      if (item.area) parts.push(item.area);
-      if (item.locality) parts.push(item.locality);
-      if (item.wardNo) parts.push(`Ward No: ${item.wardNo}`);
+    const parts = [];
+    if (item.area) parts.push(item.area);
+    if (item.locality) parts.push(item.locality);
+    if (item.wardNo) parts.push(`Ward No: ${item.wardNo}`);
+    // If all parts exist, join them; otherwise return what's available or just locality
+    if (parts.length > 0) {
       return parts.join(", ");
     }
+    // Fallback to just locality if nothing else exists
     return item.locality || "-";
   };
 
@@ -1836,7 +1837,7 @@ export default function EEPHDashboard({
                                 <td className="p-2 text-xs align-top">{s.sector}</td>
                                 <td className="p-2 text-xs max-w-xs truncate align-top" title={s.proposal}>{s.proposal}</td>
                                 <td className="p-2 text-xs align-top">{fmtINR(s.cost)}</td>
-                                <td className="p-2 text-xs max-w-xs truncate align-top" title={s.locality}>{s.locality}</td>
+                                <td className="p-2 text-xs max-w-xs truncate align-top" title={formatLocality(s)}>{formatLocality(s) || "-"}</td>
                                 <td className="p-2 text-xs max-w-xs truncate align-top" title={s.latlong || "-"}>
                                   {s.latlong ? (s.latlong.length > 20 ? s.latlong.substring(0, 20) + "..." : s.latlong) : "-"}
                                 </td>
@@ -1969,7 +1970,7 @@ export default function EEPHDashboard({
                                   <td className="p-2 text-xs align-top">{isFirstInGroup ? s.sector : ""}</td>
                                   <td className="p-2 text-xs max-w-xs truncate align-top" title={s.proposal}>{s.proposal}</td>
                                   <td className="p-2 text-xs align-top">{fmtINR(s.cost)}</td>
-                                  <td className="p-2 text-xs max-w-xs truncate align-top" title={s.locality}>{s.locality}</td>
+                                  <td className="p-2 text-xs max-w-xs truncate align-top" title={formatLocality(s)}>{formatLocality(s) || "-"}</td>
                                   <td className="p-2 text-xs max-w-xs truncate align-top" title={s.latlong || "-"}>
                                     {s.latlong ? (s.latlong.length > 20 ? s.latlong.substring(0, 20) + "..." : s.latlong) : "-"}
                                   </td>
