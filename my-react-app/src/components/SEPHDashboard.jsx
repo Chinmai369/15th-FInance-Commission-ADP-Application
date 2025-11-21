@@ -1319,6 +1319,10 @@ export default function SEPHDashboard({
                             </th>
                           )}
                           <th className="p-2 text-left whitespace-nowrap text-xs">S.No</th>
+                          <th className="p-2 text-left whitespace-nowrap text-xs">Year</th>
+                          <th className="p-2 text-left whitespace-nowrap text-xs">Installment</th>
+                          <th className="p-2 text-left whitespace-nowrap text-xs">GrantType</th>
+                          <th className="p-2 text-left whitespace-nowrap text-xs">Proposal</th>
                           <th className="p-2 text-left whitespace-nowrap text-xs">
                             <div className="flex flex-col gap-1">
                               <div className="flex items-center gap-1">
@@ -1646,6 +1650,26 @@ export default function SEPHDashboard({
                                       </td>
                                     )}
                                     <td className="p-2 text-xs align-top">{isFirstInGroup ? globalSerial : ""}</td>
+                                    {isFirstInGroup ? (
+                                      <td className="p-2 border-r border-gray-300" rowSpan={group.length} style={{ verticalAlign: 'middle' }}>
+                                        {s.year || "-"}
+                                      </td>
+                                    ) : null}
+                                    {isFirstInGroup ? (
+                                      <td className="p-2 border-r border-gray-300" rowSpan={group.length} style={{ verticalAlign: 'middle' }}>
+                                        {s.installment || "-"}
+                                      </td>
+                                    ) : null}
+                                    {isFirstInGroup ? (
+                                      <td className="p-2 border-r border-gray-300" rowSpan={group.length} style={{ verticalAlign: 'middle' }}>
+                                        {s.grantType || "-"}
+                                      </td>
+                                    ) : null}
+                                    {isFirstInGroup ? (
+                                      <td className="p-2 border-r border-gray-300" rowSpan={group.length} style={{ verticalAlign: 'middle' }}>
+                                        {s.program || "-"}
+                                      </td>
+                                    ) : null}
                                     <td className="p-2 text-xs align-top">{isFirstInGroup ? (s.crNumber || "-") : ""}</td>
                                     <td className="p-2 text-xs align-top">{isFirstInGroup ? (s.crDate || "-") : ""}</td>
                                     <td className="p-2 text-xs align-top">{isFirstInGroup ? s.sector : ""}</td>
@@ -1678,6 +1702,10 @@ export default function SEPHDashboard({
                             return filteredList.map((s, i) => (
                               <tr key={s.id} className="border-b hover:bg-gray-50">
                                 <td className="p-2 text-xs align-top">{i + 1}</td>
+                                <td className="p-2 text-xs align-top">{s.year || "-"}</td>
+                                <td className="p-2 text-xs align-top">{s.installment || "-"}</td>
+                                <td className="p-2 text-xs align-top">{s.grantType || "-"}</td>
+                                <td className="p-2 text-xs align-top">{s.program || "-"}</td>
                                 <td className="p-2 text-xs align-top">{s.crNumber || "-"}</td>
                                 <td className="p-2 text-xs align-top">{s.crDate || "-"}</td>
                                 <td className="p-2 text-xs align-top">{s.sector}</td>
@@ -1723,6 +1751,10 @@ export default function SEPHDashboard({
                                   </td>
                                 )}
                                 <td className="p-2 text-xs align-top">{i + 1}</td>
+                                <td className="p-2 text-xs align-top">{s.year || "-"}</td>
+                                <td className="p-2 text-xs align-top">{s.installment || "-"}</td>
+                                <td className="p-2 text-xs align-top">{s.grantType || "-"}</td>
+                                <td className="p-2 text-xs align-top">{s.program || "-"}</td>
                                 <td className="p-2 text-xs align-top">{s.crNumber || "-"}</td>
                                 <td className="p-2 text-xs align-top">{s.crDate || "-"}</td>
                                 <td className="p-2 text-xs align-top">{s.sector}</td>
@@ -2017,6 +2049,10 @@ export default function SEPHDashboard({
                   <thead className="bg-gray-100 border-b">
                     <tr>
                       <th className="p-2 text-left whitespace-nowrap text-xs">S.No</th>
+                      <th className="p-2 text-left whitespace-nowrap text-xs">Year</th>
+                      <th className="p-2 text-left whitespace-nowrap text-xs">Installment</th>
+                      <th className="p-2 text-left whitespace-nowrap text-xs">GrantType</th>
+                      <th className="p-2 text-left whitespace-nowrap text-xs">Proposal</th>
                       <th className="p-2 text-left whitespace-nowrap text-xs">CR Number</th>
                       <th className="p-2 text-left whitespace-nowrap text-xs">CR Date</th>
                       <th className="p-2 text-left whitespace-nowrap text-xs">Sector</th>

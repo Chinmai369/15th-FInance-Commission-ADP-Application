@@ -1515,6 +1515,10 @@ export default function EEPHDashboard({
                             </th>
                           )}
                           <th className="p-2 text-left whitespace-nowrap text-xs">S.No</th>
+                          <th className="p-2 text-left whitespace-nowrap text-xs">Year</th>
+                          <th className="p-2 text-left whitespace-nowrap text-xs">Installment</th>
+                          <th className="p-2 text-left whitespace-nowrap text-xs">GrantType</th>
+                          <th className="p-2 text-left whitespace-nowrap text-xs">Proposal</th>
                           <th className="p-2 text-left whitespace-nowrap text-xs">
                             <div className="flex flex-col gap-1">
                               <div className="flex flex-col gap-1">
@@ -1832,6 +1836,10 @@ export default function EEPHDashboard({
                                   </td>
                                 )}
                                 <td className="p-2 text-xs align-top">{i + 1}</td>
+                                <td className="p-2 text-xs align-top">{s.year || "-"}</td>
+                                <td className="p-2 text-xs align-top">{s.installment || "-"}</td>
+                                <td className="p-2 text-xs align-top">{s.grantType || "-"}</td>
+                                <td className="p-2 text-xs align-top">{s.program || "-"}</td>
                                 <td className="p-2 text-xs align-top">{s.crNumber || "-"}</td>
                                 <td className="p-2 text-xs align-top">{s.crDate || "-"}</td>
                                 <td className="p-2 text-xs align-top">{s.sector}</td>
@@ -1965,6 +1973,26 @@ export default function EEPHDashboard({
                                     </td>
                                   )}
                                   <td className="p-2 text-xs align-top">{isFirstInGroup ? globalSerial : ""}</td>
+                                  {isFirstInGroup ? (
+                                    <td className="p-2 border-r border-gray-300" rowSpan={group.length} style={{ verticalAlign: 'middle' }}>
+                                      {s.year || "-"}
+                                    </td>
+                                  ) : null}
+                                  {isFirstInGroup ? (
+                                    <td className="p-2 border-r border-gray-300" rowSpan={group.length} style={{ verticalAlign: 'middle' }}>
+                                      {s.installment || "-"}
+                                    </td>
+                                  ) : null}
+                                  {isFirstInGroup ? (
+                                    <td className="p-2 border-r border-gray-300" rowSpan={group.length} style={{ verticalAlign: 'middle' }}>
+                                      {s.grantType || "-"}
+                                    </td>
+                                  ) : null}
+                                  {isFirstInGroup ? (
+                                    <td className="p-2 border-r border-gray-300" rowSpan={group.length} style={{ verticalAlign: 'middle' }}>
+                                      {s.program || "-"}
+                                    </td>
+                                  ) : null}
                                   <td className="p-2 text-xs align-top">{isFirstInGroup ? (s.crNumber || "-") : ""}</td>
                                   <td className="p-2 text-xs align-top">{isFirstInGroup ? (s.crDate || "-") : ""}</td>
                                   <td className="p-2 text-xs align-top">{isFirstInGroup ? s.sector : ""}</td>

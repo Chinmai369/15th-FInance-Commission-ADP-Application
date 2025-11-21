@@ -504,6 +504,10 @@ export default function AdminDashboard({
       detailedReport,
       area: area,
       wardNo: wardNo,
+      year: selection.year,
+      installment: selection.installment,
+      grantType: selection.grantType,
+      program: selection.program,
     };
 
     setSubmissions((s) => {
@@ -2174,6 +2178,10 @@ export default function AdminDashboard({
                   <thead className="bg-gray-100 sticky top-0">
                     <tr className="text-left text-xs border-b border-gray-300 font-semibold">
                       <th className="p-2 whitespace-nowrap border-r border-gray-300">S.No</th>
+                      <th className="p-2 whitespace-nowrap border-r border-gray-300">Year</th>
+                      <th className="p-2 whitespace-nowrap border-r border-gray-300">Installment</th>
+                      <th className="p-2 whitespace-nowrap border-r border-gray-300">GrantType</th>
+                      <th className="p-2 whitespace-nowrap border-r border-gray-300">Proposal</th>
                       <th className="p-2 whitespace-nowrap border-r border-gray-300">CR Number</th>
                       <th className="p-2 whitespace-nowrap border-r border-gray-300">CR Date</th>
                       <th className="p-2 whitespace-nowrap border-r border-gray-300">Sector</th>
@@ -2191,7 +2199,7 @@ export default function AdminDashboard({
                   </thead>
                   <tbody>
                     {groupedKeys.length === 0 ? (
-                      <tr><td className="p-4 text-sm text-gray-500 border-r border-gray-300" colSpan={14}>No submissions yet.</td></tr>
+                      <tr><td className="p-4 text-sm text-gray-500 border-r border-gray-300" colSpan={18}>No submissions yet.</td></tr>
                     ) : (
                       groupedKeys.map((sector, groupIdx) => {
                         const group = groupedSubmissions[sector];
@@ -2224,6 +2232,18 @@ export default function AdminDashboard({
                                 ) : (
                                   <span className="text-gray-400 text-xs">↳</span>
                                 )}
+                              </td>
+                              <td className="p-2 align-top border-r border-gray-300">
+                                {isFirst ? (item.year || "-") : <span className="text-gray-400">-</span>}
+                              </td>
+                              <td className="p-2 align-top border-r border-gray-300">
+                                {isFirst ? (item.installment || "-") : <span className="text-gray-400">-</span>}
+                              </td>
+                              <td className="p-2 align-top border-r border-gray-300">
+                                {isFirst ? (item.grantType || "-") : <span className="text-gray-400">-</span>}
+                              </td>
+                              <td className="p-2 align-top border-r border-gray-300">
+                                {isFirst ? (item.program || "-") : <span className="text-gray-400">-</span>}
                               </td>
                               <td className="p-2 align-top border-r border-gray-300">
                                 {isFirst ? (item.crNumber || "-") : <span className="text-gray-400">-</span>}
@@ -2320,6 +2340,10 @@ export default function AdminDashboard({
                     <thead className="bg-gray-100 sticky top-0">
                       <tr className="text-left text-xs border-b border-gray-300 font-semibold">
                         <th className="p-2 whitespace-nowrap border-r border-gray-300">S.No</th>
+                        <th className="p-2 whitespace-nowrap border-r border-gray-300">Year</th>
+                        <th className="p-2 whitespace-nowrap border-r border-gray-300">Installment</th>
+                        <th className="p-2 whitespace-nowrap border-r border-gray-300">GrantType</th>
+                        <th className="p-2 whitespace-nowrap border-r border-gray-300">Proposal</th>
                         <th className="p-2 whitespace-nowrap border-r border-gray-300">CR Number</th>
                         <th className="p-2 whitespace-nowrap border-r border-gray-300">CR Date</th>
                         <th className="p-2 whitespace-nowrap border-r border-gray-300">
@@ -2383,6 +2407,10 @@ export default function AdminDashboard({
                       {cdmaList.map((s, i) => (
                         <tr key={s.id} className="border-b border-gray-300 hover:bg-gray-50">
                         <td className="p-2 border-r border-gray-300">{i + 1}</td>
+                          <td className="p-2 border-r border-gray-300">{s.year || "-"}</td>
+                          <td className="p-2 border-r border-gray-300">{s.installment || "-"}</td>
+                          <td className="p-2 border-r border-gray-300">{s.grantType || "-"}</td>
+                          <td className="p-2 border-r border-gray-300">{s.program || "-"}</td>
                           <td className="p-2 border-r border-gray-300">{s.crNumber || "-"}</td>
                           <td className="p-2 border-r border-gray-300">{s.crDate || "-"}</td>
                         <td className="p-2 border-r border-gray-300">{s.sector}</td>
@@ -2437,6 +2465,10 @@ export default function AdminDashboard({
                   <thead className="bg-gray-100 sticky top-0">
                     <tr className="text-left text-xs border-b border-gray-300 font-semibold">
                       <th className="p-2 whitespace-nowrap border-r border-gray-300">S.No</th>
+                      <th className="p-2 whitespace-nowrap border-r border-gray-300">Year</th>
+                      <th className="p-2 whitespace-nowrap border-r border-gray-300">Installment</th>
+                      <th className="p-2 whitespace-nowrap border-r border-gray-300">GrantType</th>
+                      <th className="p-2 whitespace-nowrap border-r border-gray-300">Proposal</th>
                       <th className="p-2 whitespace-nowrap border-r border-gray-300">
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-1">
@@ -2774,6 +2806,26 @@ export default function AdminDashboard({
                             return (
                               <tr key={s.id} className="border-b border-gray-300 hover:bg-gray-50">
                                 <td className="p-2 align-top border-r border-gray-300">{isFirstInGroup ? globalSerial : ""}</td>
+                                {isFirstInGroup ? (
+                                  <td className="p-2 border-r border-gray-300" rowSpan={groupSize} style={{ verticalAlign: 'middle' }}>
+                                    {s.year || "-"}
+                                  </td>
+                                ) : null}
+                                {isFirstInGroup ? (
+                                  <td className="p-2 border-r border-gray-300" rowSpan={groupSize} style={{ verticalAlign: 'middle' }}>
+                                    {s.installment || "-"}
+                                  </td>
+                                ) : null}
+                                {isFirstInGroup ? (
+                                  <td className="p-2 border-r border-gray-300" rowSpan={groupSize} style={{ verticalAlign: 'middle' }}>
+                                    {s.grantType || "-"}
+                                  </td>
+                                ) : null}
+                                {isFirstInGroup ? (
+                                  <td className="p-2 border-r border-gray-300" rowSpan={groupSize} style={{ verticalAlign: 'middle' }}>
+                                    {s.program || "-"}
+                                  </td>
+                                ) : null}
                                 <td className="p-2 align-top border-r border-gray-300">{isFirstInGroup ? (s.crNumber || "-") : ""}</td>
                                 <td className="p-2 align-top border-r border-gray-300">{isFirstInGroup ? (s.crDate || "-") : ""}</td>
                                 {isFirstInGroup ? (
@@ -2844,6 +2896,10 @@ export default function AdminDashboard({
                         return filteredList.map((s, i) => (
                           <tr key={s.id} className="border-b border-gray-300 hover:bg-gray-50">
                             <td className="p-2 border-r border-gray-300">{i + 1}</td>
+                            <td className="p-2 border-r border-gray-300">{s.year || "-"}</td>
+                            <td className="p-2 border-r border-gray-300">{s.installment || "-"}</td>
+                            <td className="p-2 border-r border-gray-300">{s.grantType || "-"}</td>
+                            <td className="p-2 border-r border-gray-300">{s.program || "-"}</td>
                             <td className="p-2 border-r border-gray-300">{s.crNumber || "-"}</td>
                             <td className="p-2 border-r border-gray-300">{s.crDate || "-"}</td>
                             <td className="p-2 border-r border-gray-300">{s.sector}</td>

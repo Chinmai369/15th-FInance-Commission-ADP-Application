@@ -1078,6 +1078,10 @@ export default function CDMADashboard({
                           </th>
                         )}
                         <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">S.No</th>
+                        <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">Year</th>
+                        <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">Installment</th>
+                        <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">GrantType</th>
+                        <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">Proposal</th>
                         <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-1">
@@ -1409,6 +1413,26 @@ export default function CDMADashboard({
                                 return (
                                   <tr key={s.id} className="border-b border-gray-300 hover:bg-gray-50">
                                     <td className="p-2 text-xs align-top border-r border-gray-300">{isFirstInGroup ? globalSerial : ""}</td>
+                                    {isFirstInGroup ? (
+                                      <td className="p-2 border-r border-gray-300" rowSpan={group.length} style={{ verticalAlign: 'middle' }}>
+                                        {s.year || "-"}
+                                      </td>
+                                    ) : null}
+                                    {isFirstInGroup ? (
+                                      <td className="p-2 border-r border-gray-300" rowSpan={group.length} style={{ verticalAlign: 'middle' }}>
+                                        {s.installment || "-"}
+                                      </td>
+                                    ) : null}
+                                    {isFirstInGroup ? (
+                                      <td className="p-2 border-r border-gray-300" rowSpan={group.length} style={{ verticalAlign: 'middle' }}>
+                                        {s.grantType || "-"}
+                                      </td>
+                                    ) : null}
+                                    {isFirstInGroup ? (
+                                      <td className="p-2 border-r border-gray-300" rowSpan={group.length} style={{ verticalAlign: 'middle' }}>
+                                        {s.program || "-"}
+                                      </td>
+                                    ) : null}
                                     <td className="p-2 text-xs align-top border-r border-gray-300">{isFirstInGroup ? (s.crNumber || "-") : ""}</td>
                                     <td className="p-2 text-xs align-top border-r border-gray-300">{isFirstInGroup ? (s.crDate || "-") : ""}</td>
                                     <td className="p-2 text-xs align-top border-r border-gray-300">{isFirstInGroup ? s.sector : ""}</td>
@@ -1454,6 +1478,10 @@ export default function CDMADashboard({
                                   </td>
                                 )}
                                 <td className="p-2 text-xs align-top border-r border-gray-300">{i + 1}</td>
+                                <td className="p-2 text-xs align-top border-r border-gray-300">{s.year || "-"}</td>
+                                <td className="p-2 text-xs align-top border-r border-gray-300">{s.installment || "-"}</td>
+                                <td className="p-2 text-xs align-top border-r border-gray-300">{s.grantType || "-"}</td>
+                                <td className="p-2 text-xs align-top border-r border-gray-300">{s.program || "-"}</td>
                                 <td className="p-2 text-xs align-top border-r border-gray-300">{s.crNumber || "-"}</td>
                                 <td className="p-2 text-xs align-top border-r border-gray-300">{s.crDate || "-"}</td>
                                 <td className="p-2 text-xs align-top border-r border-gray-300">{s.sector}</td>
@@ -1497,6 +1525,10 @@ export default function CDMADashboard({
                                   </td>
                                 )}
                                 <td className="p-2 text-xs align-top border-r border-gray-300">{i + 1}</td>
+                                <td className="p-2 text-xs align-top border-r border-gray-300">{s.year || "-"}</td>
+                                <td className="p-2 text-xs align-top border-r border-gray-300">{s.installment || "-"}</td>
+                                <td className="p-2 text-xs align-top border-r border-gray-300">{s.grantType || "-"}</td>
+                                <td className="p-2 text-xs align-top border-r border-gray-300">{s.program || "-"}</td>
                                 <td className="p-2 text-xs align-top border-r border-gray-300">{s.crNumber || "-"}</td>
                                 <td className="p-2 text-xs align-top border-r border-gray-300">{s.crDate || "-"}</td>
                                 <td className="p-2 text-xs align-top border-r border-gray-300">{s.sector}</td>
@@ -1798,6 +1830,10 @@ export default function CDMADashboard({
                   <thead className="bg-gray-100 border-b border-gray-300">
                     <tr>
                       <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">S.No</th>
+                      <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">Year</th>
+                      <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">Installment</th>
+                      <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">GrantType</th>
+                      <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">Proposal</th>
                       <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">CR Number</th>
                       <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">CR Date</th>
                       <th className="p-2 text-left whitespace-nowrap text-xs border-r border-gray-300">Sector</th>
@@ -1818,6 +1854,10 @@ export default function CDMADashboard({
                     {rejectedList.map((s, i) => (
                       <tr key={s.id} className="border-b border-gray-300 hover:bg-gray-50">
                         <td className="p-2 text-xs border-r border-gray-300">{i + 1}</td>
+                        <td className="p-2 text-xs border-r border-gray-300">{s.year || "-"}</td>
+                        <td className="p-2 text-xs border-r border-gray-300">{s.installment || "-"}</td>
+                        <td className="p-2 text-xs border-r border-gray-300">{s.grantType || "-"}</td>
+                        <td className="p-2 text-xs border-r border-gray-300">{s.program || "-"}</td>
                         <td className="p-2 text-xs border-r border-gray-300">{s.crNumber || "-"}</td>
                         <td className="p-2 text-xs border-r border-gray-300">{s.crDate || "-"}</td>
                         <td className="p-2 text-xs border-r border-gray-300">{s.sector}</td>
