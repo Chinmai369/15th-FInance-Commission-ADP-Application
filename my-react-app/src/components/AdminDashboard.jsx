@@ -470,7 +470,7 @@ export default function AdminDashboard({
     setCostError("");
     
     if (!isSelectionReady) {
-      setFormError("Please choose Year, Installment, Grant Type and Program.");
+      setFormError("Please choose Year, Installment, Grant Type and Proposal.");
       return;
     }
     
@@ -1023,7 +1023,7 @@ export default function AdminDashboard({
     },
     { 
       id: "createNewAdp", 
-      label: "Create New ADP", 
+      label: "Create New Proposal", 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1218,7 +1218,9 @@ export default function AdminDashboard({
             )}
 
         {/* Heading */}
-        <h2 className="text-2xl font-semibold text-gray-800 mb-4 text-center">ADP Works Dashboard</h2>
+        <h2 className="text-2xl font-semibold text-gray-800 mb-4 text-center">
+          {selectedMenuItem === "createNewAdp" ? "Create New Proposal" : "ADP Works Dashboard"}
+        </h2>
 
         {/* Statistics Cards - Show only when Dashboard is selected */}
         {selectedMenuItem === "dashboard" && (
@@ -1358,14 +1360,14 @@ export default function AdminDashboard({
             </div>
 
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Program <span className="text-red-500">*</span></label>
+              <label className="block text-sm text-gray-600 mb-1">Proposal <span className="text-red-500">*</span></label>
               <select
                 value={selection.program}
                 onChange={(e) => setSelection({ ...selection, program: e.target.value })}
                 disabled={!selection.grantType}
                 className="border p-2 rounded w-full"
               >
-                <option value="">Select program</option>
+                <option value="">Select proposal</option>
                 <option>ADP</option>
                 <option>RADP</option>
               </select>
@@ -1408,7 +1410,7 @@ export default function AdminDashboard({
 
             {/* RADP/ADP Form */}
             <div className="bg-white rounded-xl shadow p-6 border">
-              <div className="text-lg font-semibold mb-6 text-gray-800">{selection.program} Details</div>
+              <div className="text-lg font-semibold mb-6 text-gray-800">Proposal Details</div>
 
               {/* CR Status Selection */}
               <div className="mb-6 pb-6 border-b border-gray-200">
@@ -1900,7 +1902,7 @@ export default function AdminDashboard({
                             <span className="ml-2 text-gray-900">{selection.grantType || "-"}</span>
                           </div>
                           <div>
-                            <span className="font-semibold text-gray-700">Program:</span>
+                            <span className="font-semibold text-gray-700">Proposal:</span>
                             <span className="ml-2 text-gray-900">{selection.program || "-"}</span>
                           </div>
                         </div>
