@@ -2,6 +2,7 @@ import Header from "./Header";
 import SidebarMenu from "./SidebarMenu";
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import PreviewModal from "./PreviewModal";
 
 export default function ENCPHDashboard({
   user,
@@ -198,6 +199,8 @@ export default function ENCPHDashboard({
   const [showRejectPanel, setShowRejectPanel] = useState(false);
   const [rejectRemarks, setRejectRemarks] = useState("");
   const [showApprovePanel, setShowApprovePanel] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [verificationData, setVerificationData] = useState(null);
   const [approveRemarks, setApproveRemarks] = useState("");
 
   // Logout modal state
@@ -625,20 +628,30 @@ export default function ENCPHDashboard({
     if (!sub) return;
     // Close any other panels first
     setShowRejectPanel(false);
+    setShowApprovePanel(false);
     setModalOpen(false);
-    // Open approval panel
+    // Open preview modal instead of approval panel
     setPreviewSubmission(sub);
-    setShowApprovePanel(true);
+    setShowPreviewModal(true);
     setApproveRemarks("");
+    setVerificationData(null);
   };
 
-  const confirmApprove = () => {
+  const confirmApprove = (verificationDataParam = null) => {
     if (!previewSubmission) return;
     
-    // Validate that Verification Note is filled
-    if (!approveRemarks || approveRemarks.trim() === "") {
-      showAlert("Please enter Verification Note before approving.", "error");
+    // Use passed verification data or fall back to state
+    const dataToUse = verificationDataParam || verificationData;
+    
+    // Require verification data from preview modal
+    if (!dataToUse) {
+      alert("Please verify in the preview modal before approving");
       return;
+    }
+    
+    // Store verification data in state for later use
+    if (verificationDataParam) {
+      setVerificationData(verificationDataParam);
     }
     
     setForwardedSubmissions((prev) => {
@@ -651,9 +664,14 @@ export default function ENCPHDashboard({
               forwardedTo: {
                 department: "Administration",
                 section: "CDMA",
-                remarks: approveRemarks,
+                remarks: approveRemarks || "",
               },
-              remarks: approveRemarks,
+              remarks: approveRemarks || "",
+              verifiedBy: dataToUse ? {
+                name: dataToUse.verifiedPersonName,
+                designation: dataToUse.verifiedPersonDesignation,
+                timestamp: dataToUse.verificationTimestamp
+              } : null,
               // Explicitly preserve all file properties - check multiple sources
               workImage: previewSubmission.workImage || f.workImage || currentSub?.workImage || null,
               detailedReport: previewSubmission.detailedReport || f.detailedReport || currentSub?.detailedReport || null,
@@ -663,7 +681,8 @@ export default function ENCPHDashboard({
           : f
       );
     });
-    // Close modal immediately
+    // Close modals immediately
+    setShowPreviewModal(false);
     setShowApprovePanel(false);
     setPreviewSubmission(null);
     setApproveRemarks("");
@@ -1715,6 +1734,74 @@ export default function ENCPHDashboard({
           })()}
 
           {/* Approve Remarks Modal */}
+          {/* Preview Modal for Approval */}
+          {showPreviewModal && previewSubmission && (() => {
+            // Build timeline data for ENCPH
+            // Step 1: Engineer (who forwarded)
+            // Step 2: Commissioner (who verified - from submission data)
+            // Step 3: ENCPH (current user - will be added when checkbox is clicked)
+            const timelineData = {
+              forwardedFrom: previewSubmission.forwardedBy || previewSubmission.forwardedDate ? {
+                name: previewSubmission.forwardedBy || "Engineer",
+                timestamp: previewSubmission.forwardedDate || null
+              } : null,
+              verifiedBy: previewSubmission.verifiedBy ? {
+                name: previewSubmission.verifiedBy.name || "Commissioner",
+                timestamp: previewSubmission.verifiedBy.timestamp || null
+              } : null,
+              // Current user (ENCPH) will be added dynamically when checkbox is clicked
+              currentUser: null
+            };
+
+            // Convert single submission to array format for PreviewModal
+            const submissionArray = [previewSubmission];
+
+            // Build selection data from submission
+            const selectionData = previewSubmission.selection ? {
+              year: previewSubmission.selection.year || "",
+              installment: previewSubmission.selection.installment || "",
+              grantType: previewSubmission.selection.grantType || "",
+              program: previewSubmission.selection.program || ""
+            } : {
+              year: previewSubmission.year || "",
+              installment: previewSubmission.installment || "",
+              grantType: previewSubmission.grantType || "",
+              program: previewSubmission.program || ""
+            };
+
+            return (
+              <PreviewModal
+                isOpen={showPreviewModal}
+                onClose={() => {
+                  setShowPreviewModal(false);
+                  setVerificationData(null);
+                  setPreviewSubmission(null);
+                }}
+                onConfirm={(data) => {
+                  confirmApprove(data);
+                }}
+                selection={selectionData}
+                crStatus={previewSubmission.crNumber ? "CR" : ""}
+                crNumber={previewSubmission.crNumber || ""}
+                crDate={previewSubmission.crDate || ""}
+                numberOfWorks=""
+                submissions={submissionArray}
+                totalSubmittedCost={previewSubmission.cost || 0}
+                committeeFile={previewSubmission.committeeReport || null}
+                councilFile={previewSubmission.councilResolution || null}
+                isEditing={false}
+                showAlert={showAlert}
+                user={user}
+                ulbName={user?.ulb || "Vijayawada"}
+                verifiedPersonName={verificationData?.verifiedPersonName || ""}
+                verifiedPersonDesignation={verificationData?.verifiedPersonDesignation || ""}
+                verificationWord={verificationData?.verificationWord || ""}
+                verificationTimestamp={verificationData?.verificationTimestamp || null}
+                timeline={timelineData}
+              />
+            );
+          })()}
+
           {showApprovePanel && previewSubmission && (
             <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4">
               <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full p-6 overflow-auto max-h-[90vh]">

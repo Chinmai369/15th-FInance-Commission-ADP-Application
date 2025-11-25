@@ -2,6 +2,7 @@ import Header from "./Header";
 import SidebarMenu from "./SidebarMenu";
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import PreviewModal from "./PreviewModal";
 
 export default function SEPHDashboard({
   user,
@@ -228,6 +229,8 @@ export default function SEPHDashboard({
   const [showRejectPanel, setShowRejectPanel] = useState(false);
   const [rejectRemarks, setRejectRemarks] = useState("");
   const [showApprovePanel, setShowApprovePanel] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [verificationData, setVerificationData] = useState(null);
   const [approveRemarks, setApproveRemarks] = useState("");
   const [approvalConfirmed, setApprovalConfirmed] = useState(false);
   const [selectedView, setSelectedView] = useState("pending"); // For card-based navigation
@@ -631,27 +634,46 @@ export default function SEPHDashboard({
     if (!sub) return;
     // Close any other panels first
     setShowRejectPanel(false);
+    setShowApprovePanel(false);
     setModalOpen(false);
-    // Open approval panel
+    // Open preview modal instead of approval panel
     setPreviewSubmission(sub);
-    setShowApprovePanel(true);
+    setShowPreviewModal(true);
     setApproveRemarks("");
     setApprovalConfirmed(false);
+    setVerificationData(null);
   };
 
-  const confirmApprove = () => {
+  const confirmApprove = (verificationDataParam = null) => {
     if (!previewSubmission) return;
     
-    // Validate that Verification Note is filled
-    if (!approveRemarks || approveRemarks.trim() === "") {
-      showAlert("Please enter Verification Note before approving.", "error");
+    // Use passed verification data or fall back to state
+    const dataToUse = verificationDataParam || verificationData;
+    
+    // Require verification data from preview modal
+    if (!dataToUse) {
+      alert("Please verify in the preview modal before approving");
       return;
+    }
+    
+    // Store verification data in state for later use
+    if (verificationDataParam) {
+      setVerificationData(verificationDataParam);
     }
     
     setForwardedSubmissions((prev) => {
       const updated = prev.map((f) =>
         f.id === previewSubmission.id 
-          ? { ...f, status: "SEPH Approved", remarks: approveRemarks } 
+          ? { 
+              ...f, 
+              status: "SEPH Approved", 
+              remarks: approveRemarks || "",
+              verifiedBy: dataToUse ? {
+                name: dataToUse.verifiedPersonName,
+                designation: dataToUse.verifiedPersonDesignation,
+                timestamp: dataToUse.verificationTimestamp
+              } : null
+            } 
           : f
       );
       // Find the updated submission to set as preview
@@ -661,7 +683,9 @@ export default function SEPHDashboard({
       }
       return updated;
     });
-    // Keep modal open and show forward section
+    // Close preview modal and show forward section
+    setShowPreviewModal(false);
+    setShowApprovePanel(true);
     setApprovalConfirmed(true);
     setDept("");
     setSection("");
@@ -1796,6 +1820,117 @@ export default function SEPHDashboard({
           })()}
 
           {/* Approve Remarks Modal */}
+          {/* Preview Modal for Approval */}
+          {showPreviewModal && previewSubmission && (() => {
+            // Build timeline data for SEPH
+            // Step 1: Engineer (who forwarded)
+            // Step 2: Commissioner (who verified - from submission data)
+            // Step 3: EEPH (who verified - if status is EEPH Approved)
+            // Step 4: SEPH (current user - will be added when checkbox is clicked)
+            const status = previewSubmission.status || "";
+            const isEEPHApproved = status === "EEPH Approved" || (status && status.toLowerCase().includes("eeph approved"));
+            const isForwardedToSEPH = status === "Forwarded to SEPH" || (status && status.toLowerCase().includes("forwarded to seph"));
+            
+            // EEPH verification can be in eephVerifiedBy (preserved when forwarding) or verifiedBy (if status is EEPH Approved)
+            const eephVerification = previewSubmission.eephVerifiedBy ? {
+              name: previewSubmission.eephVerifiedBy.name || previewSubmission.eephVerifiedBy.designation || "EEPH",
+              timestamp: previewSubmission.eephVerifiedBy.timestamp || null
+            } : (isEEPHApproved && previewSubmission.verifiedBy ? {
+              name: previewSubmission.verifiedBy.name || previewSubmission.verifiedBy.designation || "EEPH",
+              timestamp: previewSubmission.verifiedBy.timestamp || null
+            } : (isForwardedToSEPH && previewSubmission.verifiedBy ? {
+              // If forwarded to SEPH, verifiedBy might still contain EEPH's info
+              name: previewSubmission.verifiedBy.name || previewSubmission.verifiedBy.designation || "EEPH",
+              timestamp: previewSubmission.verifiedBy.timestamp || null
+            } : null));
+            
+            // Commissioner verification - prioritize commissionerVerifiedBy
+            // When status is "Forwarded to SEPH" or "EEPH Approved", verifiedBy contains EEPH's info, so we must use commissionerVerifiedBy
+            // Also check if verifiedBy has Commissioner designation as a fallback
+            const commissionerVerification = previewSubmission.commissionerVerifiedBy ? {
+              name: previewSubmission.commissionerVerifiedBy.name || previewSubmission.commissionerVerifiedBy.designation || "Commissioner",
+              timestamp: previewSubmission.commissionerVerifiedBy.timestamp || null
+            } : (previewSubmission.verifiedBy && !isEEPHApproved && !isForwardedToSEPH && 
+                 (previewSubmission.verifiedBy.designation?.toLowerCase().includes("commissioner") || 
+                  !previewSubmission.verifiedBy.designation?.toLowerCase().includes("eeph"))) ? {
+              // Only use verifiedBy if status is not EEPH Approved, not Forwarded to SEPH, and designation is Commissioner
+              name: previewSubmission.verifiedBy.name || previewSubmission.verifiedBy.designation || "Commissioner",
+              timestamp: previewSubmission.verifiedBy.timestamp || null
+            } : null;
+            
+            console.log("🔍 SEPH Commissioner Verification Debug:", {
+              hasCommissionerVerifiedBy: !!previewSubmission.commissionerVerifiedBy,
+              commissionerVerifiedBy: previewSubmission.commissionerVerifiedBy,
+              verifiedBy: previewSubmission.verifiedBy,
+              isEEPHApproved,
+              isForwardedToSEPH,
+              commissionerVerification
+            });
+            
+            const timelineData = {
+              forwardedFrom: previewSubmission.forwardedBy || previewSubmission.forwardedDate ? {
+                name: previewSubmission.forwardedBy || "Engineer",
+                timestamp: previewSubmission.forwardedDate || null
+              } : null,
+              // Commissioner verification
+              verifiedBy: commissionerVerification,
+              // EEPH verification (if status shows EEPH Approved)
+              eephVerifiedBy: eephVerification,
+              // Current user (SEPH) will be added dynamically when checkbox is clicked
+              currentUser: null
+            };
+            
+            console.log("🔍 SEPH Timeline Data Result:", timelineData);
+
+            // Convert single submission to array format for PreviewModal
+            const submissionArray = [previewSubmission];
+
+            // Build selection data from submission
+            const selectionData = previewSubmission.selection ? {
+              year: previewSubmission.selection.year || "",
+              installment: previewSubmission.selection.installment || "",
+              grantType: previewSubmission.selection.grantType || "",
+              program: previewSubmission.selection.program || ""
+            } : {
+              year: previewSubmission.year || "",
+              installment: previewSubmission.installment || "",
+              grantType: previewSubmission.grantType || "",
+              program: previewSubmission.program || ""
+            };
+
+            return (
+              <PreviewModal
+                isOpen={showPreviewModal}
+                onClose={() => {
+                  setShowPreviewModal(false);
+                  setVerificationData(null);
+                  setPreviewSubmission(null);
+                }}
+                onConfirm={(data) => {
+                  confirmApprove(data);
+                }}
+                selection={selectionData}
+                crStatus={previewSubmission.crNumber ? "CR" : ""}
+                crNumber={previewSubmission.crNumber || ""}
+                crDate={previewSubmission.crDate || ""}
+                numberOfWorks=""
+                submissions={submissionArray}
+                totalSubmittedCost={previewSubmission.cost || 0}
+                committeeFile={previewSubmission.committeeReport || null}
+                councilFile={previewSubmission.councilResolution || null}
+                isEditing={false}
+                showAlert={showAlert}
+                user={user}
+                ulbName={user?.ulb || "Vijayawada"}
+                verifiedPersonName={verificationData?.verifiedPersonName || ""}
+                verifiedPersonDesignation={verificationData?.verifiedPersonDesignation || ""}
+                verificationWord={verificationData?.verificationWord || ""}
+                verificationTimestamp={verificationData?.verificationTimestamp || null}
+                timeline={timelineData}
+              />
+            );
+          })()}
+
           {showApprovePanel && previewSubmission && (
             <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4">
               <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full p-6 overflow-auto max-h-[90vh]">

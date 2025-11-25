@@ -1,7 +1,8 @@
 import Header from "./Header";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import SidebarMenu from "./SidebarMenu";
-import React, { useEffect, useRef, useState, useMemo } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import PreviewModal from "./PreviewModal";
 
 export default function CommissionerDashboard({
   user,
@@ -251,13 +252,15 @@ export default function CommissionerDashboard({
   const [bulkRejectRemarks, setBulkRejectRemarks] = useState("");
   const [showBulkApproveModal, setShowBulkApproveModal] = useState(false);
   const [bulkApproveRemarks, setBulkApproveRemarks] = useState("");
-  const [bulkScrutinizedConfirmed, setBulkScrutinizedConfirmed] = useState(false);
   const [approveRemarks, setApproveRemarks] = useState("");
   const [approvalConfirmed, setApprovalConfirmed] = useState(false);
-  const [scrutinizedConfirmed, setScrutinizedConfirmed] = useState(false);
   const [forwardConfirmed, setForwardConfirmed] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [verificationData, setVerificationData] = useState(null);
   const [showBulkForwardModal, setShowBulkForwardModal] = useState(false);
   const [bulkApprovedItems, setBulkApprovedItems] = useState([]);
+  const [previewVerified, setPreviewVerified] = useState(false);
+const [commissionerVerifiedAt, setCommissionerVerifiedAt] = useState(null);
   
   // View state for card-based navigation
   const [selectedView, setSelectedView] = useState("pending");
@@ -783,25 +786,43 @@ export default function CommissionerDashboard({
     setShowForwardPanel(false);
     setForwardConfirmed(false);
     setModalOpen(false);
-    // Open approval panel
+    // Open preview modal instead of approval panel
     setPreviewSubmission(sub);
-    setShowApprovePanel(true);
+    setShowPreviewModal(true);
     setApproveRemarks("");
     setApprovalConfirmed(false);
-    setScrutinizedConfirmed(false);
+    setVerificationData(null);
   };
 
-  const confirmApprove = () => {
+  const confirmApprove = (verificationDataParam = null) => {
     if (!previewSubmission) return;
-    if (!scrutinizedConfirmed) {
-      alert("Please check 'Scrutinized and Recommended' before approving");
+    // Use passed verification data or fall back to state
+    const dataToUse = verificationDataParam || verificationData;
+    
+    // Require verification data from preview modal
+    if (!dataToUse) {
+      alert("Please verify in the preview modal before approving");
       return;
+    }
+    
+    // Store verification data in state for later use
+    if (verificationDataParam) {
+      setVerificationData(verificationDataParam);
     }
     
     setForwardedSubmissions((prev) => {
       const updated = prev.map((f) =>
         f.id === previewSubmission.id 
-          ? { ...f, status: "Approved", remarks: approveRemarks || "" } 
+          ? { 
+              ...f, 
+              status: "Approved", 
+              remarks: approveRemarks || "",
+              verifiedBy: dataToUse ? {
+                name: dataToUse.verifiedPersonName,
+                designation: dataToUse.verifiedPersonDesignation,
+                timestamp: dataToUse.verificationTimestamp
+              } : null
+            } 
           : f
       );
       // Find the updated submission to set as preview
@@ -811,12 +832,15 @@ export default function CommissionerDashboard({
       }
       return updated;
     });
-    // Keep popup open and show forward section
+    // Close preview modal and show forwarding modal as popup
+    setShowPreviewModal(false);
+    setShowApprovePanel(true);
     setApprovalConfirmed(true);
-    setScrutinizedConfirmed(false); // Reset for next time
+    setShowForwardPanel(false);
     setDept("");
     setSection("");
     setForwardRemarks("");
+    setForwardConfirmed(false);
     setApproveBanner("Work approved successfully.");
     setTimeout(() => setApproveBanner(""), 1500);
   };
@@ -916,14 +940,9 @@ export default function CommissionerDashboard({
     // Open approval remarks modal
     setShowBulkApproveModal(true);
     setBulkApproveRemarks("");
-    setBulkScrutinizedConfirmed(false);
   };
 
   const confirmBulkApprove = () => {
-    if (!bulkScrutinizedConfirmed) {
-      alert("Please check 'Scrutinized and Recommended' before approving");
-      return;
-    }
     
     const count = selectedItems.length;
 
@@ -944,7 +963,7 @@ export default function CommissionerDashboard({
     // Close approval modal
     setShowBulkApproveModal(false);
     setBulkApproveRemarks("");
-    setBulkScrutinizedConfirmed(false); // Reset for next time
+ // Reset for next time
     
     // Open forwarding modal
     setShowBulkForwardModal(true);
@@ -999,7 +1018,7 @@ export default function CommissionerDashboard({
       return;
     }
     if (!forwardConfirmed) {
-      alert("Please check 'Scrutinized and Recommended' before forwarding");
+      alert("Please check the confirmation checkbox before forwarding");
       return;
     }
 
@@ -1054,6 +1073,7 @@ export default function CommissionerDashboard({
                 department: dept,
                 section,
                 remarks: forwardRemarks,
+                timestamp: new Date().toISOString(),
               },
               status: newStatus,
               // Explicitly preserve all file properties - check multiple sources
@@ -1112,6 +1132,8 @@ export default function CommissionerDashboard({
       setSection("");
       setForwardRemarks("");
     setApproveRemarks("");
+     setPreviewVerified(false);
+  setCommissionerVerifiedAt(null);
     
     // Reset forwardConfirmed when closing
     setForwardConfirmed(false);
@@ -1127,7 +1149,7 @@ export default function CommissionerDashboard({
       return;
     }
     if (!forwardConfirmed) {
-      alert("Please check 'Scrutinized and Recommended' before forwarding");
+      alert("Please check the confirmation checkbox before forwarding");
       return;
     }
 
@@ -2175,7 +2197,7 @@ export default function CommissionerDashboard({
                   className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                 />
                 <label htmlFor="forwardConfirmedPanel" className="text-sm text-gray-700 font-medium">
-                  Scrutinized and Recommended
+                  Confirm Forwarding
                 </label>
               </div>
               <div className="flex justify-end mt-4">
@@ -2212,7 +2234,6 @@ export default function CommissionerDashboard({
                       setShowApprovePanel(false);
                       setApproveRemarks("");
                       setApprovalConfirmed(false);
-                      setScrutinizedConfirmed(false);
                       setForwardConfirmed(false);
                       setPreviewSubmission(null);
                       setDept("");
@@ -2246,25 +2267,12 @@ export default function CommissionerDashboard({
                         placeholder="Enter remarks for approval (optional)..."
                       />
                     </div>
-                    <div className="flex items-center gap-2 mt-4">
-                      <input
-                        type="checkbox"
-                        id="scrutinizedConfirmed"
-                        checked={scrutinizedConfirmed}
-                        onChange={(e) => setScrutinizedConfirmed(e.target.checked)}
-                        className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                      />
-                      <label htmlFor="scrutinizedConfirmed" className="text-sm text-gray-700 font-medium">
-                        Scrutinized and Recommended
-                      </label>
-                    </div>
                     <div className="flex justify-end gap-3 mt-6">
                       <button
                         onClick={() => {
                           setShowApprovePanel(false);
                           setApproveRemarks("");
                           setApprovalConfirmed(false);
-                          setScrutinizedConfirmed(false);
                           setPreviewSubmission(null);
                         }}
                         className="px-5 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
@@ -2273,12 +2281,7 @@ export default function CommissionerDashboard({
                       </button>
                       <button
                         onClick={confirmApprove}
-                        disabled={!scrutinizedConfirmed}
-                        className={`px-5 py-2 rounded ${
-                          !scrutinizedConfirmed
-                            ? "bg-gray-400 cursor-not-allowed text-gray-600"
-                            : "bg-green-600 hover:bg-green-700 text-white"
-                        }`}
+                        className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded"
                       >
                         Confirm Approval
                       </button>
@@ -2339,7 +2342,7 @@ export default function CommissionerDashboard({
                           className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                         />
                         <label htmlFor="forwardConfirmed" className="text-sm text-gray-700 font-medium">
-                          Scrutinized and Recommended
+                          Confirm Forwarding
                         </label>
                       </div>
                     </div>
@@ -2440,6 +2443,79 @@ export default function CommissionerDashboard({
             </div>
           )}
 
+          {/* Preview Modal for Approval */}
+          {showPreviewModal && previewSubmission && (() => {
+            // Build timeline data
+            const timelineData = {
+              forwardedFrom: previewSubmission.forwardedBy || previewSubmission.forwardedDate ? {
+                name: previewSubmission.forwardedBy || "Engineer",
+                timestamp: previewSubmission.forwardedDate || null
+              } : null,
+              verifiedBy: verificationData ? {
+                name: user?.username || "Commissioner",
+                timestamp: verificationData.verificationTimestamp || new Date().toISOString()
+              } : (approvalConfirmed && previewSubmission.verifiedBy ? {
+                name: user?.username || "Commissioner",
+                timestamp: previewSubmission.verifiedBy?.timestamp || new Date().toISOString()
+              } : null),
+              forwardingTo: (approvalConfirmed && section) || previewSubmission.forwardedTo?.section ? {
+                section: previewSubmission.forwardedTo?.section || section,
+                name: "", // EEPH name if available
+                timestamp: previewSubmission.forwardedTo?.timestamp || null
+              } : null
+            };
+
+            // Convert single submission to array format for PreviewModal
+            const submissionArray = [previewSubmission];
+
+            // Build selection data from submission (if available)
+            // Check multiple possible locations for selection data
+            const selectionData = previewSubmission.selection ? {
+              year: previewSubmission.selection.year || "",
+              installment: previewSubmission.selection.installment || "",
+              grantType: previewSubmission.selection.grantType || "",
+              program: previewSubmission.selection.program || ""
+            } : {
+              year: previewSubmission.year || "",
+              installment: previewSubmission.installment || "",
+              grantType: previewSubmission.grantType || "",
+              program: previewSubmission.program || "" // Don't use proposal - it's different from program
+            };
+
+            return (
+              <PreviewModal
+                isOpen={showPreviewModal}
+                onClose={() => {
+                  setShowPreviewModal(false);
+                  setVerificationData(null);
+                  setPreviewSubmission(null);
+                }}
+                onConfirm={(data) => {
+                  // Pass verification data directly to confirmApprove
+                  confirmApprove(data);
+                }}
+                selection={selectionData}
+                crStatus={previewSubmission.crNumber ? "CR" : ""}
+                crNumber={previewSubmission.crNumber || ""}
+                crDate={previewSubmission.crDate || ""}
+                numberOfWorks=""
+                submissions={submissionArray}
+                totalSubmittedCost={previewSubmission.cost || 0}
+                committeeFile={previewSubmission.committeeReport || null}
+                councilFile={previewSubmission.councilResolution || null}
+                isEditing={false}
+                showAlert={showAlert}
+                user={user}
+                ulbName={user?.ulb || "Vijayawada"}
+                verifiedPersonName={verificationData?.verifiedPersonName || ""}
+                verifiedPersonDesignation={verificationData?.verifiedPersonDesignation || ""}
+                verificationWord={verificationData?.verificationWord || ""}
+                verificationTimestamp={verificationData?.verificationTimestamp || null}
+                timeline={timelineData}
+              />
+            );
+          })()}
+
           {/* Bulk Approve Modal */}
           {showBulkApproveModal && (
             <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4">
@@ -2469,24 +2545,11 @@ export default function CommissionerDashboard({
                     placeholder="Enter remarks for approval (optional)..."
                   />
                 </div>
-                <div className="flex items-center gap-2 mt-4">
-                  <input
-                    type="checkbox"
-                    id="bulkScrutinizedConfirmed"
-                    checked={bulkScrutinizedConfirmed}
-                    onChange={(e) => setBulkScrutinizedConfirmed(e.target.checked)}
-                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                  />
-                  <label htmlFor="bulkScrutinizedConfirmed" className="text-sm text-gray-700 font-medium">
-                    Scrutinized and Recommended
-                  </label>
-                </div>
                 <div className="flex justify-end gap-3 mt-6">
                   <button
                     onClick={() => {
                       setShowBulkApproveModal(false);
                       setBulkApproveRemarks("");
-                      setBulkScrutinizedConfirmed(false);
                     }}
                     className="px-5 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
                   >
@@ -2494,12 +2557,7 @@ export default function CommissionerDashboard({
                   </button>
                   <button
                     onClick={confirmBulkApprove}
-                    disabled={!bulkScrutinizedConfirmed}
-                    className={`px-5 py-2 rounded ${
-                      !bulkScrutinizedConfirmed
-                        ? "bg-gray-400 cursor-not-allowed text-gray-600"
-                        : "bg-green-600 hover:bg-green-700 text-white"
-                    }`}
+                    className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded"
                   >
                     Confirm Approval
                   </button>
@@ -2629,7 +2687,7 @@ export default function CommissionerDashboard({
                       className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                     />
                     <label htmlFor="bulkForwardConfirmed" className="text-sm text-gray-700 font-medium">
-                      Scrutinized and Recommended
+                      Confirm Forwarding
                     </label>
                   </div>
                 </div>

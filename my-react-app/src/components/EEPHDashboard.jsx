@@ -2,6 +2,7 @@ import Header from "./Header";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import SidebarMenu from "./SidebarMenu";
 import { useLocation, useNavigate } from "react-router-dom";
+import PreviewModal from "./PreviewModal";
 
 export default function EEPHDashboard({
   user,
@@ -273,6 +274,8 @@ export default function EEPHDashboard({
   const [showRejectPanel, setShowRejectPanel] = useState(false);
   const [rejectRemarks, setRejectRemarks] = useState("");
   const [showApprovePanel, setShowApprovePanel] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [verificationData, setVerificationData] = useState(null);
   const [approveRemarks, setApproveRemarks] = useState("");
   const [approvalConfirmed, setApprovalConfirmed] = useState(false);
 
@@ -804,30 +807,48 @@ export default function EEPHDashboard({
     if (!sub) return;
     // Close any other panels first
     setShowRejectPanel(false);
+    setShowApprovePanel(false);
     setModalOpen(false);
-    // Open approval panel
+    // Open preview modal instead of approval panel
     setPreviewSubmission(sub);
-    setShowApprovePanel(true);
+    setShowPreviewModal(true);
     setApproveRemarks("");
     setApprovalConfirmed(false);
+    setVerificationData(null);
   };
 
-  const confirmApprove = () => {
+  const confirmApprove = (verificationDataParam = null) => {
     if (!previewSubmission) return;
     
-    // Validate that Verification Note is filled
-    if (!approveRemarks || approveRemarks.trim() === "") {
-      showAlert("Please enter Verification Note before approving.", "error");
+    // Use passed verification data or fall back to state
+    const dataToUse = verificationDataParam || verificationData;
+    
+    // Require verification data from preview modal
+    if (!dataToUse) {
+      alert("Please verify in the preview modal before approving");
       return;
     }
     
+    // Store verification data in state for later use
+    if (verificationDataParam) {
+      setVerificationData(verificationDataParam);
+    }
+    
     setForwardedSubmissions((prev) => {
+      const currentSub = prev.find((f) => f.id === previewSubmission.id);
       const updated = prev.map((f) =>
         f.id === previewSubmission.id 
           ? { 
               ...f, 
               status: "EEPH Approved", 
-              remarks: approveRemarks,
+              remarks: approveRemarks || "",
+              // Preserve Commissioner's verification before overwriting verifiedBy
+              commissionerVerifiedBy: currentSub?.verifiedBy && !currentSub?.status?.includes("EEPH") ? currentSub.verifiedBy : f.commissionerVerifiedBy,
+              verifiedBy: dataToUse ? {
+                name: dataToUse.verifiedPersonName,
+                designation: dataToUse.verifiedPersonDesignation,
+                timestamp: dataToUse.verificationTimestamp
+              } : null,
               // Explicitly preserve all file properties
               workImage: previewSubmission.workImage || f.workImage,
               detailedReport: previewSubmission.detailedReport || f.detailedReport,
@@ -849,7 +870,9 @@ export default function EEPHDashboard({
       }
       return updated;
     });
-    // Keep modal open and show forward section
+    // Close preview modal and show forward section
+    setShowPreviewModal(false);
+    setShowApprovePanel(true);
     setApprovalConfirmed(true);
     setDept("");
     setSection("");
@@ -917,6 +940,10 @@ export default function EEPHDashboard({
                 section,
               },
               status: "Forwarded to SEPH",
+              // Preserve Commissioner's verification (should already be in commissionerVerifiedBy from approval)
+              commissionerVerifiedBy: currentSub?.commissionerVerifiedBy || f.commissionerVerifiedBy,
+              // Preserve EEPH's verification before status changes
+              eephVerifiedBy: currentSub?.verifiedBy && (currentSub?.status === "EEPH Approved" || currentSub?.status?.includes("EEPH Approved")) ? currentSub.verifiedBy : f.eephVerifiedBy,
               // Explicitly preserve all file properties - check multiple sources
               workImage: previewSubmission.workImage || f.workImage || currentSub?.workImage || null,
               detailedReport: previewSubmission.detailedReport || f.detailedReport || currentSub?.detailedReport || null,
@@ -1076,6 +1103,7 @@ export default function EEPHDashboard({
       return prev.map((f) => {
         if (bulkApprovedItems.includes(f.id)) {
           const currentSub = prev.find((sub) => sub.id === f.id);
+          const currentSubItem = prev.find((sub) => sub.id === f.id);
           return {
             ...f,
             forwardedTo: {
@@ -1083,6 +1111,10 @@ export default function EEPHDashboard({
               section,
             },
             status: "Forwarded to SEPH",
+            // Preserve Commissioner's verification (should already be in commissionerVerifiedBy from approval)
+            commissionerVerifiedBy: currentSubItem?.commissionerVerifiedBy || f.commissionerVerifiedBy,
+            // Preserve EEPH's verification before status changes
+            eephVerifiedBy: currentSubItem?.verifiedBy && (currentSubItem?.status === "EEPH Approved" || currentSubItem?.status?.includes("EEPH Approved")) ? currentSubItem.verifiedBy : f.eephVerifiedBy,
             // Explicitly preserve all file properties
             workImage: f.workImage || currentSub?.workImage || null,
             detailedReport: f.detailedReport || currentSub?.detailedReport || null,
@@ -2050,6 +2082,74 @@ export default function EEPHDashboard({
                     </table>
                   </div>
               </>
+            );
+          })()}
+
+          {/* Preview Modal for Approval */}
+          {showPreviewModal && previewSubmission && (() => {
+            // Build timeline data for EEPH
+            // Step 1: Engineer (who forwarded)
+            // Step 2: Commissioner (who verified - from submission data)
+            // Step 3: EEPH (current user - will be added when checkbox is clicked)
+            const timelineData = {
+              forwardedFrom: previewSubmission.forwardedBy || previewSubmission.forwardedDate ? {
+                name: previewSubmission.forwardedBy || "Engineer",
+                timestamp: previewSubmission.forwardedDate || null
+              } : null,
+              verifiedBy: previewSubmission.verifiedBy ? {
+                name: previewSubmission.verifiedBy.name || "Commissioner",
+                timestamp: previewSubmission.verifiedBy.timestamp || null
+              } : null,
+              // Current user (EEPH) will be added dynamically when checkbox is clicked
+              currentUser: null
+            };
+
+            // Convert single submission to array format for PreviewModal
+            const submissionArray = [previewSubmission];
+
+            // Build selection data from submission
+            const selectionData = previewSubmission.selection ? {
+              year: previewSubmission.selection.year || "",
+              installment: previewSubmission.selection.installment || "",
+              grantType: previewSubmission.selection.grantType || "",
+              program: previewSubmission.selection.program || ""
+            } : {
+              year: previewSubmission.year || "",
+              installment: previewSubmission.installment || "",
+              grantType: previewSubmission.grantType || "",
+              program: previewSubmission.program || ""
+            };
+
+            return (
+              <PreviewModal
+                isOpen={showPreviewModal}
+                onClose={() => {
+                  setShowPreviewModal(false);
+                  setVerificationData(null);
+                  setPreviewSubmission(null);
+                }}
+                onConfirm={(data) => {
+                  confirmApprove(data);
+                }}
+                selection={selectionData}
+                crStatus={previewSubmission.crNumber ? "CR" : ""}
+                crNumber={previewSubmission.crNumber || ""}
+                crDate={previewSubmission.crDate || ""}
+                numberOfWorks=""
+                submissions={submissionArray}
+                totalSubmittedCost={previewSubmission.cost || 0}
+                committeeFile={previewSubmission.committeeReport || null}
+                councilFile={previewSubmission.councilResolution || null}
+                isEditing={false}
+                showAlert={showAlert}
+                user={user}
+                ulbName={user?.ulb || "Vijayawada"}
+                verifiedPersonName={verificationData?.verifiedPersonName || ""}
+                verifiedPersonDesignation={verificationData?.verifiedPersonDesignation || ""}
+                verificationWord={verificationData?.verificationWord || ""}
+                verificationTimestamp={verificationData?.verificationTimestamp || null}
+                timeline={timelineData}
+              />
             );
           })()}
 
