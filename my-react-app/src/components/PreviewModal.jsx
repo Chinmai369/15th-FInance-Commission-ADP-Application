@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import Timeline from "./Timeline";
 
 // Helper function to format currency
 const fmtINR = (n) =>
@@ -596,161 +597,11 @@ const PreviewModal = ({
             </div>
 
             {/* Timeline - Show if timeline data is provided */}
-            {(() => {
-              const dynamicTimeline = getDynamicTimeline();
-              if (!dynamicTimeline) return null;
-              
-              // Build timeline items array in descending order (newest first) with fixed step numbers
-              const timelineItems = [];
-
-              // Current User Verification (newest - if checkbox is checked)
-              // Assign step numbers based on user role: Commissioner = 2, EEPH = 3, SEPH = 4, ENCPH = 5
-              if (dynamicTimeline.currentUser && dynamicTimeline.currentUser.name) {
-                let stepNumber = 3; // Default
-                let color = "purple"; // Default
-                
-                // Determine step number and color based on user role
-                const userRole = user?.role?.toLowerCase();
-                if (userRole === "commissioner") {
-                  stepNumber = 2;
-                  color = "green";
-                } else if (userRole === "eeph") {
-                  stepNumber = 3;
-                  color = "orange";
-                } else if (userRole === "seph") {
-                  stepNumber = 4;
-                  color = "purple";
-                } else if (userRole === "encph") {
-                  stepNumber = 5;
-                  color = "purple";
-                }
-                
-                timelineItems.push({
-                  step: stepNumber,
-                  color: color,
-                  content: (
-                    <p className="text-sm text-gray-800">
-                      Verified by <span className="font-semibold">{dynamicTimeline.currentUser.designation} {dynamicTimeline.currentUser.name}</span>
-                      {dynamicTimeline.currentUser.timestamp && (
-                        <span className="text-gray-600 ml-2">
-                          at {new Date(dynamicTimeline.currentUser.timestamp).toLocaleString('en-IN', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit',
-                            timeZone: 'Asia/Kolkata'
-                          })}
-                        </span>
-                      )}
-                    </p>
-                  )
-                });
-              }
-
-              // EEPH Verification (if exists) - Step 3 (only for SEPH and ENCPH)
-              if (dynamicTimeline.eephVerifiedBy) {
-                timelineItems.push({
-                  step: 3,
-                  color: "orange",
-                  content: (
-                    <p className="text-sm text-gray-800">
-                      Verified by <span className="font-semibold">EEPH {dynamicTimeline.eephVerifiedBy.name || "-"}</span>
-                      {dynamicTimeline.eephVerifiedBy.timestamp && (
-                        <span className="text-gray-600 ml-2">
-                          at {new Date(dynamicTimeline.eephVerifiedBy.timestamp).toLocaleString('en-IN', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit',
-                            timeZone: 'Asia/Kolkata'
-                          })}
-                        </span>
-                      )}
-                    </p>
-                  )
-                });
-              }
-
-              // Verified By Commissioner (middle - if exists) - Step 2
-              if (dynamicTimeline.verifiedBy) {
-                timelineItems.push({
-                  step: 2,
-                  color: "green",
-                  content: (
-                    <p className="text-sm text-gray-800">
-                      Verified by <span className="font-semibold">Commissioner {dynamicTimeline.verifiedBy.name || "-"}</span>
-                      {dynamicTimeline.verifiedBy.timestamp && (
-                        <span className="text-gray-600 ml-2">
-                          at {new Date(dynamicTimeline.verifiedBy.timestamp).toLocaleString('en-IN', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit',
-                            timeZone: 'Asia/Kolkata'
-                          })}
-                        </span>
-                      )}
-                    </p>
-                  )
-                });
-              }
-
-              // Forwarded From Engineer (oldest - if exists) - Step 1
-              if (dynamicTimeline.forwardedFrom && dynamicTimeline.forwardedFrom.name && dynamicTimeline.forwardedFrom.name.trim()) {
-                timelineItems.push({
-                  step: 1,
-                  color: "blue",
-                  content: (
-                    <p className="text-sm text-gray-800">
-                      Forwarded from <span className="font-semibold">Engineer {dynamicTimeline.forwardedFrom.name}</span>
-                      {dynamicTimeline.forwardedFrom.timestamp && (
-                        <span className="text-gray-600 ml-2">
-                          at {new Date(dynamicTimeline.forwardedFrom.timestamp).toLocaleString('en-IN', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit',
-                            timeZone: 'Asia/Kolkata'
-                          })}
-                        </span>
-                      )}
-                    </p>
-                  )
-                });
-              }
-
-              return timelineItems.length > 0 ? (
-                <div className="mt-4 pt-4 border-t border-gray-300">
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4">Timeline</h4>
-                  <div className="space-y-4">
-                    {timelineItems.map((item, idx) => {
-                      const colorClass = item.color === "purple" ? "bg-purple-500" :
-                                        item.color === "orange" ? "bg-orange-500" :
-                                        item.color === "green" ? "bg-green-500" :
-                                        "bg-blue-500";
-                      return (
-                        <div key={idx} className="flex items-start gap-3">
-                          <div className={`flex-shrink-0 w-8 h-8 rounded-full ${colorClass} flex items-center justify-center text-white text-sm font-bold`}>
-                            {item.step}
-                          </div>
-                          <div className="flex-1 pt-1">
-                            {item.content}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null;
-            })()}
+            <Timeline 
+              timeline={getDynamicTimeline()} 
+              user={user} 
+              isVerified={isVerified}
+            />
           </div>
 
           {/* Footer */}

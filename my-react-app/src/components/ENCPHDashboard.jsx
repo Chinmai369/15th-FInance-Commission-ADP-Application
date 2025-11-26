@@ -595,6 +595,11 @@ export default function ENCPHDashboard({
       detailedReport: mergedSub.detailedReport || null,
       committeeReport: mergedSub.committeeReport || null,
       councilResolution: mergedSub.councilResolution || null,
+      // Add selection details
+      year: mergedSub.year || mergedSub.selection?.year || "",
+      installment: mergedSub.installment || mergedSub.selection?.installment || "",
+      grantType: mergedSub.grantType || mergedSub.selection?.grantType || "",
+      program: mergedSub.program || mergedSub.selection?.program || "",
     });
     setModalOpen(true);
   };
@@ -613,6 +618,17 @@ export default function ENCPHDashboard({
               detailedReport: editable.detailedReport || f.detailedReport,
               committeeReport: editable.committeeReport || f.committeeReport,
               councilResolution: editable.councilResolution || f.councilResolution,
+              // Preserve selection details
+              year: editable.year || f.year,
+              installment: editable.installment || f.installment,
+              grantType: editable.grantType || f.grantType,
+              program: editable.program || f.program,
+              selection: {
+                year: editable.year || f.selection?.year || f.year || "",
+                installment: editable.installment || f.selection?.installment || f.installment || "",
+                grantType: editable.grantType || f.selection?.grantType || f.grantType || "",
+                program: editable.program || f.selection?.program || f.program || ""
+              }
             }
           : f
       )
@@ -1770,17 +1786,41 @@ export default function ENCPHDashboard({
           {showPreviewModal && previewSubmission && (() => {
             // Build timeline data for ENCPH
             // Step 1: Engineer (who forwarded)
-            // Step 2: Commissioner (who verified - from submission data)
-            // Step 3: ENCPH (current user - will be added when checkbox is clicked)
+            // Step 2: Commissioner (who verified)
+            // Step 3: EEPH (who verified)
+            // Step 4: SEPH (who verified)
+            // Step 5: ENCPH (current user - will be added when checkbox is clicked)
+            const status = previewSubmission.status || "";
+            const isForwardedToENCPH = status === "Forwarded to ENCPH" || (status && status.toLowerCase().includes("forwarded to encph"));
+            
+            // Extract verifications from submission
+            const commissionerVerification = previewSubmission.commissionerVerifiedBy ? {
+              name: previewSubmission.commissionerVerifiedBy.name || previewSubmission.commissionerVerifiedBy.designation || "Commissioner",
+              timestamp: previewSubmission.commissionerVerifiedBy.timestamp || null
+            } : null;
+            
+            const eephVerification = previewSubmission.eephVerifiedBy ? {
+              name: previewSubmission.eephVerifiedBy.name || previewSubmission.eephVerifiedBy.designation || "EEPH",
+              timestamp: previewSubmission.eephVerifiedBy.timestamp || null
+            } : null;
+            
+            const sephVerification = previewSubmission.sephVerifiedBy ? {
+              name: previewSubmission.sephVerifiedBy.name || previewSubmission.sephVerifiedBy.designation || "SEPH",
+              timestamp: previewSubmission.sephVerifiedBy.timestamp || null
+            } : (isForwardedToENCPH && previewSubmission.verifiedBy ? {
+              // If forwarded to ENCPH, verifiedBy might contain SEPH's info
+              name: previewSubmission.verifiedBy.name || previewSubmission.verifiedBy.designation || "SEPH",
+              timestamp: previewSubmission.verifiedBy.timestamp || null
+            } : null);
+            
             const timelineData = {
               forwardedFrom: previewSubmission.forwardedBy || previewSubmission.forwardedDate ? {
                 name: previewSubmission.forwardedBy || "Engineer",
                 timestamp: previewSubmission.forwardedDate || null
               } : null,
-              verifiedBy: previewSubmission.verifiedBy ? {
-                name: previewSubmission.verifiedBy.name || "Commissioner",
-                timestamp: previewSubmission.verifiedBy.timestamp || null
-              } : null,
+              verifiedBy: commissionerVerification,
+              eephVerifiedBy: eephVerification,
+              sephVerifiedBy: sephVerification,
               // Current user (ENCPH) will be added dynamically when checkbox is clicked
               currentUser: null
             };
@@ -2031,6 +2071,75 @@ export default function ENCPHDashboard({
                   >
                     Close
                   </button>
+                </div>
+
+                {/* Selection Details Section */}
+                <div className="mb-4 pb-4 border-b border-gray-300">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Selection Details</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div>
+                      <label className="text-sm text-gray-600">Year</label>
+                      <select
+                        className="w-full border p-2 rounded mt-1"
+                        value={editable.year || ""}
+                        onChange={(e) =>
+                          setEditable({ ...editable, year: e.target.value })
+                        }
+                      >
+                        <option value="">Select year</option>
+                        <option>2021-22</option>
+                        <option>2022-23</option>
+                        <option>2023-24</option>
+                        <option>2024-25</option>
+                        <option>2025-26</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Installment</label>
+                      <select
+                        className="w-full border p-2 rounded mt-1"
+                        value={editable.installment || ""}
+                        onChange={(e) =>
+                          setEditable({ ...editable, installment: e.target.value })
+                        }
+                        disabled={!editable.year}
+                      >
+                        <option value="">Select installment</option>
+                        <option>First Installment</option>
+                        <option>Second Installment</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Grant Type</label>
+                      <select
+                        className="w-full border p-2 rounded mt-1"
+                        value={editable.grantType || ""}
+                        onChange={(e) =>
+                          setEditable({ ...editable, grantType: e.target.value })
+                        }
+                        disabled={!editable.installment}
+                      >
+                        <option value="">Select grant type</option>
+                        <option>Untied Grant</option>
+                        <option>Tied Grant</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Proposal</label>
+                      <select
+                        className="w-full border p-2 rounded mt-1"
+                        value={editable.program || ""}
+                        onChange={(e) =>
+                          setEditable({ ...editable, program: e.target.value })
+                        }
+                        disabled={!editable.grantType}
+                      >
+                        <option value="">Select proposal</option>
+                        <option>ADP</option>
+                        <option>RADP</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

@@ -13,7 +13,8 @@ import {
   saveToIndexedDB, 
   loadFromIndexedDB, 
   migrateFromLocalStorage,
-  getStorageInfo 
+  getStorageInfo,
+  clearAllWorks
 } from "./services/storage";
 import "./App.css";
 
@@ -109,6 +110,29 @@ function App() {
       proposal: s.proposal?.substring(0, 30) || 'N/A'
     })));
   }, [forwardedSubmissions]);
+
+  // Make clearAllWorks available globally for console access
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.clearAllWorks = async () => {
+        try {
+          await clearAllWorks();
+          setForwardedSubmissions([]);
+          alert('✅ All works data cleared successfully from localStorage and IndexedDB!');
+          console.log('✅ All works cleared. Please refresh the page.');
+        } catch (error) {
+          console.error('❌ Error clearing works:', error);
+          alert('❌ Error clearing works data. Check console for details.');
+        }
+      };
+      console.log('💡 Tip: You can clear all works by calling window.clearAllWorks() in the console');
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete window.clearAllWorks;
+      }
+    };
+  }, []);
 
   // Initialize storage and load data on mount
   useEffect(() => {

@@ -170,3 +170,22 @@ export const migrateFromLocalStorage = async () => {
   }
 };
 
+// Clear all works data from both localStorage and IndexedDB
+export const clearAllWorks = async () => {
+  try {
+    // Clear localStorage
+    localStorage.removeItem('forwardedSubmissions');
+    console.log('✅ Storage: Cleared localStorage');
+    
+    // Clear IndexedDB
+    await clearIndexedDB();
+    console.log('✅ Storage: Cleared IndexedDB');
+    
+    console.log('✅ Storage: All works data cleared successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Storage: Error clearing all works data', error);
+    throw error;
+  }
+};
+

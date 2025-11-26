@@ -745,6 +745,22 @@ const [commissionerVerifiedAt, setCommissionerVerifiedAt] = useState(null);
     });
     
     setPreviewSubmission(freshSub);
+    
+    // Extract selection details - check multiple possible locations
+    const yearValue = freshSub.year || freshSub.selection?.year || "";
+    const installmentValue = freshSub.installment || freshSub.selection?.installment || "";
+    const grantTypeValue = freshSub.grantType || freshSub.selection?.grantType || "";
+    const programValue = freshSub.program || freshSub.selection?.program || "";
+    
+    console.log("🔍 Commissioner openPreview - Selection Details:", {
+      year: yearValue,
+      installment: installmentValue,
+      grantType: grantTypeValue,
+      program: programValue,
+      fromYear: freshSub.year,
+      fromSelection: freshSub.selection
+    });
+    
     setEditable({
       sector: freshSub.sector || "",
       proposal: freshSub.proposal || "",
@@ -759,6 +775,11 @@ const [commissionerVerifiedAt, setCommissionerVerifiedAt] = useState(null);
       detailedReport: freshSub.detailedReport || null,
       committeeReport: freshSub.committeeReport || null,
       councilResolution: freshSub.councilResolution || null,
+      // Add selection details
+      year: yearValue,
+      installment: installmentValue,
+      grantType: grantTypeValue,
+      program: programValue,
     });
     setModalOpen(true);
   };
@@ -768,7 +789,22 @@ const [commissionerVerifiedAt, setCommissionerVerifiedAt] = useState(null);
     setForwardedSubmissions((prev) =>
       prev.map((f) =>
         f.id === previewSubmission.id
-          ? { ...f, ...editable, remarks: editable.remarks }
+          ? { 
+              ...f, 
+              ...editable, 
+              remarks: editable.remarks,
+              // Preserve selection details
+              year: editable.year || f.year,
+              installment: editable.installment || f.installment,
+              grantType: editable.grantType || f.grantType,
+              program: editable.program || f.program,
+              selection: {
+                year: editable.year || f.selection?.year || f.year || "",
+                installment: editable.installment || f.selection?.installment || f.installment || "",
+                grantType: editable.grantType || f.selection?.grantType || f.grantType || "",
+                program: editable.program || f.selection?.program || f.program || ""
+              }
+            }
           : f
       )
     );
@@ -818,6 +854,12 @@ const [commissionerVerifiedAt, setCommissionerVerifiedAt] = useState(null);
               status: "Approved", 
               remarks: approveRemarks || "",
               verifiedBy: dataToUse ? {
+                name: dataToUse.verifiedPersonName,
+                designation: dataToUse.verifiedPersonDesignation,
+                timestamp: dataToUse.verificationTimestamp
+              } : null,
+              // Explicitly set commissionerVerifiedBy when Commissioner approves
+              commissionerVerifiedBy: dataToUse ? {
                 name: dataToUse.verifiedPersonName,
                 designation: dataToUse.verifiedPersonDesignation,
                 timestamp: dataToUse.verificationTimestamp
@@ -1076,6 +1118,8 @@ const [commissionerVerifiedAt, setCommissionerVerifiedAt] = useState(null);
                 timestamp: new Date().toISOString(),
               },
               status: newStatus,
+              // Preserve Commissioner's verification (should already be in commissionerVerifiedBy from approval)
+              commissionerVerifiedBy: currentSub?.commissionerVerifiedBy || f.commissionerVerifiedBy || (currentSub?.verifiedBy && !currentSub?.status?.includes("EEPH") ? currentSub.verifiedBy : null),
               // Explicitly preserve all file properties - check multiple sources
               workImage: previewSubmission.workImage || f.workImage || currentSub?.workImage || null,
               detailedReport: previewSubmission.detailedReport || f.detailedReport || currentSub?.detailedReport || null,
@@ -2768,6 +2812,75 @@ const [commissionerVerifiedAt, setCommissionerVerifiedAt] = useState(null);
                 >
                   Close
                 </button>
+              </div>
+
+              {/* Selection Details Section */}
+              <div className="mb-4 pb-4 border-b border-gray-300">
+                <h4 className="text-sm font-semibold text-gray-700 mb-3">Selection Details</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-sm text-gray-600">Year</label>
+                    <select
+                      className="w-full border p-2 rounded mt-1"
+                      value={editable.year || previewSubmission.year || previewSubmission.selection?.year || ""}
+                      onChange={(e) =>
+                        setEditable({ ...editable, year: e.target.value })
+                      }
+                    >
+                      <option value="">Select year</option>
+                      <option>2021-22</option>
+                      <option>2022-23</option>
+                      <option>2023-24</option>
+                      <option>2024-25</option>
+                      <option>2025-26</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-600">Installment</label>
+                    <select
+                      className="w-full border p-2 rounded mt-1"
+                      value={editable.installment || previewSubmission.installment || previewSubmission.selection?.installment || ""}
+                      onChange={(e) =>
+                        setEditable({ ...editable, installment: e.target.value })
+                      }
+                      disabled={!editable.year && !previewSubmission.year && !previewSubmission.selection?.year}
+                    >
+                      <option value="">Select installment</option>
+                      <option>First Installment</option>
+                      <option>Second Installment</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-600">Grant Type</label>
+                    <select
+                      className="w-full border p-2 rounded mt-1"
+                      value={editable.grantType || previewSubmission.grantType || previewSubmission.selection?.grantType || ""}
+                      onChange={(e) =>
+                        setEditable({ ...editable, grantType: e.target.value })
+                      }
+                      disabled={!editable.installment && !previewSubmission.installment && !previewSubmission.selection?.installment}
+                    >
+                      <option value="">Select grant type</option>
+                      <option>Untied Grant</option>
+                      <option>Tied Grant</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-600">Proposal</label>
+                    <select
+                      className="w-full border p-2 rounded mt-1"
+                      value={editable.program || previewSubmission.program || previewSubmission.selection?.program || ""}
+                      onChange={(e) =>
+                        setEditable({ ...editable, program: e.target.value })
+                      }
+                      disabled={!editable.grantType && !previewSubmission.grantType && !previewSubmission.selection?.grantType}
+                    >
+                      <option value="">Select proposal</option>
+                      <option>ADP</option>
+                      <option>RADP</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

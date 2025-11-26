@@ -547,6 +547,14 @@ export default function AdminDashboard({
     setWorkType(s.sector);
     setProposalName(s.proposal || "");
     
+    // Restore selection details (Year, Installment, Grant Type, Proposal)
+    setSelection({
+      year: s.year || s.selection?.year || "",
+      installment: s.installment || s.selection?.installment || "",
+      grantType: s.grantType || s.selection?.grantType || "",
+      program: s.program || s.selection?.program || "",
+    });
+    
     // If submission has separate area and wardNo, use them
     if (s.area && s.wardNo) {
       setArea(s.area);
@@ -863,6 +871,16 @@ export default function AdminDashboard({
           detailedReport,
           area: area,
           wardNo: wardNo,
+          year: selection.year,
+          installment: selection.installment,
+          grantType: selection.grantType,
+          program: selection.program,
+          selection: {
+            year: selection.year || "",
+            installment: selection.installment || "",
+            grantType: selection.grantType || "",
+            program: selection.program || ""
+          }
         };
         submissionsToForward.push(editedSub);
         console.log("📤 Admin: Added edited submission to forward list");

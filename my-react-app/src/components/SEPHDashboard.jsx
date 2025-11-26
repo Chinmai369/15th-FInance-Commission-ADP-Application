@@ -601,6 +601,11 @@ export default function SEPHDashboard({
       detailedReport: mergedSub.detailedReport || null,
       committeeReport: mergedSub.committeeReport || null,
       councilResolution: mergedSub.councilResolution || null,
+      // Add selection details
+      year: mergedSub.year || mergedSub.selection?.year || "",
+      installment: mergedSub.installment || mergedSub.selection?.installment || "",
+      grantType: mergedSub.grantType || mergedSub.selection?.grantType || "",
+      program: mergedSub.program || mergedSub.selection?.program || "",
     });
     setModalOpen(true);
   };
@@ -619,6 +624,17 @@ export default function SEPHDashboard({
               detailedReport: editable.detailedReport || f.detailedReport,
               committeeReport: editable.committeeReport || f.committeeReport,
               councilResolution: editable.councilResolution || f.councilResolution,
+              // Preserve selection details
+              year: editable.year || f.year,
+              installment: editable.installment || f.installment,
+              grantType: editable.grantType || f.grantType,
+              program: editable.program || f.program,
+              selection: {
+                year: editable.year || f.selection?.year || f.year || "",
+                installment: editable.installment || f.selection?.installment || f.installment || "",
+                grantType: editable.grantType || f.selection?.grantType || f.grantType || "",
+                program: editable.program || f.selection?.program || f.program || ""
+              }
             }
           : f
       )
@@ -662,6 +678,7 @@ export default function SEPHDashboard({
     }
     
     setForwardedSubmissions((prev) => {
+      const currentSub = prev.find((f) => f.id === previewSubmission.id);
       const updated = prev.map((f) =>
         f.id === previewSubmission.id 
           ? { 
@@ -672,7 +689,16 @@ export default function SEPHDashboard({
                 name: dataToUse.verifiedPersonName,
                 designation: dataToUse.verifiedPersonDesignation,
                 timestamp: dataToUse.verificationTimestamp
-              } : null
+              } : null,
+              // Explicitly set sephVerifiedBy when SEPH approves
+              sephVerifiedBy: dataToUse ? {
+                name: dataToUse.verifiedPersonName,
+                designation: dataToUse.verifiedPersonDesignation,
+                timestamp: dataToUse.verificationTimestamp
+              } : null,
+              // Preserve previous verifications
+              commissionerVerifiedBy: currentSub?.commissionerVerifiedBy || f.commissionerVerifiedBy,
+              eephVerifiedBy: currentSub?.eephVerifiedBy || f.eephVerifiedBy
             } 
           : f
       );
@@ -752,6 +778,10 @@ export default function SEPHDashboard({
                 section,
               },
               status: "Forwarded to ENCPH",
+              // Preserve all verifications
+              commissionerVerifiedBy: currentSub?.commissionerVerifiedBy || f.commissionerVerifiedBy,
+              eephVerifiedBy: currentSub?.eephVerifiedBy || f.eephVerifiedBy,
+              sephVerifiedBy: currentSub?.sephVerifiedBy || (currentSub?.verifiedBy && currentSub?.status === "SEPH Approved" ? currentSub.verifiedBy : f.sephVerifiedBy),
               // Explicitly preserve all file properties - check multiple sources
               workImage: previewSubmission.workImage || f.workImage || currentSub?.workImage || null,
               detailedReport: previewSubmission.detailedReport || f.detailedReport || currentSub?.detailedReport || null,
@@ -928,6 +958,10 @@ export default function SEPHDashboard({
               section,
             },
             status: "Forwarded to ENCPH",
+            // Preserve all verifications
+            commissionerVerifiedBy: currentSub?.commissionerVerifiedBy || f.commissionerVerifiedBy,
+            eephVerifiedBy: currentSub?.eephVerifiedBy || f.eephVerifiedBy,
+            sephVerifiedBy: currentSub?.sephVerifiedBy || (currentSub?.verifiedBy && currentSub?.status === "SEPH Approved" ? currentSub.verifiedBy : f.sephVerifiedBy),
             // Explicitly preserve all file properties
             workImage: f.workImage || currentSub?.workImage || null,
             detailedReport: f.detailedReport || currentSub?.detailedReport || null,
@@ -1888,6 +1922,12 @@ export default function SEPHDashboard({
               // Only use verifiedBy if status is not EEPH Approved, not Forwarded to SEPH, and designation is Commissioner
               name: previewSubmission.verifiedBy.name || previewSubmission.verifiedBy.designation || "Commissioner",
               timestamp: previewSubmission.verifiedBy.timestamp || null
+            } : (previewSubmission.status === "Approved" && previewSubmission.verifiedBy && 
+                 !previewSubmission.verifiedBy.designation?.toLowerCase().includes("eeph") &&
+                 !previewSubmission.verifiedBy.designation?.toLowerCase().includes("seph")) ? {
+              // If status is "Approved" (from Commissioner), use verifiedBy as Commissioner verification
+              name: previewSubmission.verifiedBy.name || previewSubmission.verifiedBy.designation || "Commissioner",
+              timestamp: previewSubmission.verifiedBy.timestamp || null
             } : null;
             
             console.log("🔍 SEPH Commissioner Verification Debug:", {
@@ -2256,6 +2296,75 @@ export default function SEPHDashboard({
                   >
                     Close
                   </button>
+                </div>
+
+                {/* Selection Details Section */}
+                <div className="mb-4 pb-4 border-b border-gray-300">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Selection Details</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div>
+                      <label className="text-sm text-gray-600">Year</label>
+                      <select
+                        className="w-full border p-2 rounded mt-1"
+                        value={editable.year || ""}
+                        onChange={(e) =>
+                          setEditable({ ...editable, year: e.target.value })
+                        }
+                      >
+                        <option value="">Select year</option>
+                        <option>2021-22</option>
+                        <option>2022-23</option>
+                        <option>2023-24</option>
+                        <option>2024-25</option>
+                        <option>2025-26</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Installment</label>
+                      <select
+                        className="w-full border p-2 rounded mt-1"
+                        value={editable.installment || ""}
+                        onChange={(e) =>
+                          setEditable({ ...editable, installment: e.target.value })
+                        }
+                        disabled={!editable.year}
+                      >
+                        <option value="">Select installment</option>
+                        <option>First Installment</option>
+                        <option>Second Installment</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Grant Type</label>
+                      <select
+                        className="w-full border p-2 rounded mt-1"
+                        value={editable.grantType || ""}
+                        onChange={(e) =>
+                          setEditable({ ...editable, grantType: e.target.value })
+                        }
+                        disabled={!editable.installment}
+                      >
+                        <option value="">Select grant type</option>
+                        <option>Untied Grant</option>
+                        <option>Tied Grant</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Proposal</label>
+                      <select
+                        className="w-full border p-2 rounded mt-1"
+                        value={editable.program || ""}
+                        onChange={(e) =>
+                          setEditable({ ...editable, program: e.target.value })
+                        }
+                        disabled={!editable.grantType}
+                      >
+                        <option value="">Select proposal</option>
+                        <option>ADP</option>
+                        <option>RADP</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
