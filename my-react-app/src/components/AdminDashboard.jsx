@@ -1593,36 +1593,81 @@ export default function AdminDashboard({
                     <label className="block text-sm font-medium text-gray-700 mb-2">Lat/Long or Maps URL <span className="text-red-500">*</span></label>
                     <div className="relative">
                       {latlong && formatLatlongUrl(latlong) ? (
-                        <div 
-                          className="w-full border border-gray-300 rounded-md p-3 bg-white min-h-[3rem] flex items-center cursor-pointer hover:bg-blue-50 transition-colors"
-                          onClick={() => window.open(formatLatlongUrl(latlong), '_blank', 'noopener,noreferrer')}
-                        >
-                          <a 
-                            href={formatLatlongUrl(latlong)}
-                            target="_blank" 
-                            rel="noreferrer"
-                            className="text-blue-600 hover:underline flex-1 text-sm"
-                            onClick={(e) => e.stopPropagation()}
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="flex-1 border border-gray-300 rounded-md p-3 bg-white min-h-[3rem] flex items-center cursor-pointer hover:bg-blue-50 transition-colors"
+                            onClick={() => window.open(formatLatlongUrl(latlong), '_blank', 'noopener,noreferrer')}
                           >
-                            {latlong}
-                          </a>
+                            <a 
+                              href={formatLatlongUrl(latlong)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-blue-600 hover:underline flex-1 text-sm"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {latlong}
+                            </a>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setLatlong(""); }}
+                              className="text-xs text-gray-500 hover:text-gray-700 ml-2 px-2 py-1"
+                              title="Clear"
+                            >
+                              ✕
+                            </button>
+                          </div>
                           <button
-                            onClick={(e) => { e.stopPropagation(); setLatlong(""); }}
-                            className="text-xs text-gray-500 hover:text-gray-700 ml-2 px-2 py-1"
-                            title="Clear"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const mapsUrl = formatLatlongUrl(latlong);
+                              if (mapsUrl) {
+                                window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                              }
+                            }}
+                            className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors flex-shrink-0"
+                            title="Open in Google Maps"
                           >
-                            ✕
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
                           </button>
                         </div>
                       ) : (
-                        <input 
-                          value={latlong} 
-                          onChange={(e) => setLatlong(e.target.value)} 
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                          placeholder="Coordinates or Google Maps URL"
-                        />
+                        <div className="flex items-center gap-2">
+                          <input 
+                            value={latlong} 
+                            onChange={(e) => setLatlong(e.target.value)} 
+                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 pr-10 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                            placeholder="Coordinates or Google Maps URL"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // Open Google Maps with Vijayawada location or current coordinates if available
+                              let mapsUrl = "https://www.google.com/maps/search/Vijayawada,+Andhra+Pradesh";
+                              if (latlong) {
+                                const url = convertCoordinatesToGoogleMapsUrl(latlong);
+                                if (url) {
+                                  mapsUrl = url;
+                                }
+                              }
+                              window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                            }}
+                            className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors flex-shrink-0"
+                            title="Open Google Maps to select location"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                          </button>
+                        </div>
                       )}
                     </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      💡 Tip: Click the map icon to open Google Maps. Right-click on a location → "What's here?" to get coordinates, then paste them here.
+                    </p>
                   </div>
 
                   <div>
