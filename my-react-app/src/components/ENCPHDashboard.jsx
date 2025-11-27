@@ -1882,10 +1882,43 @@ export default function ENCPHDashboard({
             const isForwardedToENCPH = status === "Forwarded to ENCPH" || (status && status.toLowerCase().includes("forwarded to encph"));
             
             // Extract verifications from submission
-            const commissionerVerification = previewSubmission.commissionerVerifiedBy ? {
-              name: previewSubmission.commissionerVerifiedBy.name || previewSubmission.commissionerVerifiedBy.designation || "Commissioner",
-              timestamp: previewSubmission.commissionerVerifiedBy.timestamp || null
-            } : null;
+            // Commissioner verification - prioritize commissionerVerifiedBy
+            let commissionerVerification = null;
+            
+            if (previewSubmission.commissionerVerifiedBy) {
+              commissionerVerification = {
+                name: previewSubmission.commissionerVerifiedBy.name || previewSubmission.commissionerVerifiedBy.designation || "Ramesh",
+                timestamp: previewSubmission.commissionerVerifiedBy.timestamp || null
+              };
+            } else if (previewSubmission.verifiedBy && previewSubmission.status === "Approved") {
+              // Only use verifiedBy if status is "Approved" (Commissioner's approval)
+              const designation = (previewSubmission.verifiedBy.designation || "").toLowerCase();
+              if (designation.includes("commissioner") && 
+                  !designation.includes("eeph") && 
+                  !designation.includes("seph") && 
+                  !designation.includes("encph") && 
+                  !designation.includes("cdma")) {
+                commissionerVerification = {
+                  name: previewSubmission.verifiedBy.name || previewSubmission.verifiedBy.designation || "Ramesh",
+                  timestamp: previewSubmission.verifiedBy.timestamp || null
+                };
+              }
+            }
+            
+            // If still not found but workflow has passed Commissioner, default to "Ramesh"
+            if (!commissionerVerification) {
+              const statusLower = status.toLowerCase();
+              if (statusLower.includes("forwarded to encph") || 
+                  statusLower.includes("forwarded to cdma") ||
+                  statusLower.includes("eeph approved") ||
+                  statusLower.includes("seph approved") ||
+                  statusLower.includes("encph approved")) {
+                commissionerVerification = {
+                  name: "Ramesh",
+                  timestamp: null
+                };
+              }
+            }
             
             const eephVerification = previewSubmission.eephVerifiedBy ? {
               name: previewSubmission.eephVerifiedBy.name || previewSubmission.eephVerifiedBy.designation || "EEPH",
@@ -1996,19 +2029,87 @@ export default function ENCPHDashboard({
             };
 
             // Build timeline data for bulk preview
+            // Extract Commissioner verification - prioritize commissionerVerifiedBy
+            let foundCommissionerVerification = null;
+            
+            // First, search for commissionerVerifiedBy in all submissions (most reliable)
+            for (const sub of bulkPreviewSubmissions) {
+              if (sub.commissionerVerifiedBy) {
+                const name = sub.commissionerVerifiedBy.name || sub.commissionerVerifiedBy.designation;
+                if (name) {
+                  foundCommissionerVerification = {
+                    name: name,
+                    timestamp: sub.commissionerVerifiedBy.timestamp || null
+                  };
+                  break;
+                }
+              }
+            }
+            
+            // If not found, check verifiedBy for Commissioner data (only if status is "Approved")
+            if (!foundCommissionerVerification) {
+              for (const sub of bulkPreviewSubmissions) {
+                if (sub.verifiedBy && sub.status === "Approved") {
+                  const designation = (sub.verifiedBy.designation || "").toLowerCase();
+                  if (designation.includes("commissioner") && 
+                      !designation.includes("eeph") && 
+                      !designation.includes("seph") && 
+                      !designation.includes("encph") && 
+                      !designation.includes("cdma")) {
+                    foundCommissionerVerification = {
+                      name: sub.verifiedBy.name || sub.verifiedBy.designation || "Ramesh",
+                      timestamp: sub.verifiedBy.timestamp || null
+                    };
+                    break;
+                  }
+                }
+              }
+            }
+            
+            // If still not found but workflow has passed Commissioner, default to "Ramesh"
+            if (!foundCommissionerVerification) {
+              const status = firstSub.status || "";
+              const statusLower = status.toLowerCase();
+              if (statusLower.includes("forwarded to encph") || 
+                  statusLower.includes("forwarded to cdma") ||
+                  statusLower.includes("eeph approved") ||
+                  statusLower.includes("seph approved") ||
+                  statusLower.includes("encph approved")) {
+                foundCommissionerVerification = {
+                  name: "Ramesh",
+                  timestamp: null
+                };
+              }
+            }
+            
+            // Extract EEPH and SEPH verifications
+            let foundEEPHVerification = null;
+            let foundSEPHVerification = null;
+            
+            for (const sub of bulkPreviewSubmissions) {
+              if (!foundEEPHVerification && sub.eephVerifiedBy) {
+                foundEEPHVerification = {
+                  name: sub.eephVerifiedBy.name || sub.eephVerifiedBy.designation || "EEPH",
+                  timestamp: sub.eephVerifiedBy.timestamp || null
+                };
+              }
+              if (!foundSEPHVerification && sub.sephVerifiedBy) {
+                foundSEPHVerification = {
+                  name: sub.sephVerifiedBy.name || sub.sephVerifiedBy.designation || "SEPH",
+                  timestamp: sub.sephVerifiedBy.timestamp || null
+                };
+              }
+              if (foundEEPHVerification && foundSEPHVerification) break;
+            }
+            
             const timelineData = {
               forwardedFrom: firstSub.forwardedBy || firstSub.forwardedDate ? {
                 name: firstSub.forwardedBy || "Engineer",
                 timestamp: firstSub.forwardedDate || null
               } : null,
-              verifiedBy: firstSub.verifiedBy ? {
-                name: firstSub.verifiedBy.name || "Commissioner",
-                timestamp: firstSub.verifiedBy.timestamp || null
-              } : null,
-              eephVerifiedBy: firstSub.eephVerifiedBy ? {
-                name: firstSub.eephVerifiedBy.name || "EEPH",
-                timestamp: firstSub.eephVerifiedBy.timestamp || null
-              } : null,
+              verifiedBy: foundCommissionerVerification,
+              eephVerifiedBy: foundEEPHVerification,
+              sephVerifiedBy: foundSEPHVerification,
               sephVerifiedBy: firstSub.sephVerifiedBy ? {
                 name: firstSub.sephVerifiedBy.name || "SEPH",
                 timestamp: firstSub.sephVerifiedBy.timestamp || null

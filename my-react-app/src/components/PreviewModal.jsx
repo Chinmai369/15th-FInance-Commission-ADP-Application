@@ -449,85 +449,12 @@ const PreviewModal = ({
           {/* Submissions Summary */}
           <div className="mb-6">
             <h4 className="text-lg font-semibold text-gray-800 mb-3 pb-2 border-b border-gray-300">Works Summary</h4>
-            <div className="text-sm mb-3">
-              <span className="font-semibold text-gray-700">Total Works Submitted:</span>
-              <span className="ml-2 text-gray-900">{submissions.length + (isEditing ? 1 : 0)}</span>
-            </div>
-            <div className="text-sm mb-3">
-              <span className="font-semibold text-gray-700">Total Estimated Cost:</span>
-              <span className="ml-2 text-gray-900">{fmtINR(totalSubmittedCost)}</span>
-            </div>
             
-            {/* Works List - Table format for bulk preview, card format for single */}
-            {isBulkPreview || submissions.length > 1 ? (
-              <MultipleWorksPreview 
-                submissions={submissions} 
-                crGroups={crGroups}
-              />
-            ) : (
-              <div className="mt-4">
-                {submissions.map((sub, idx) => {
-                  const workImageUrl = getFileUrl(sub.workImage);
-                  const detailedReportUrl = getFileUrl(sub.detailedReport);
-                  return (
-                    <div key={sub.id || idx} className="mb-4 p-3 border border-gray-300 rounded-lg">
-                      <h5 className="font-semibold text-gray-800 mb-2 text-sm">Work {idx + 1}</h5>
-                      <div className="grid grid-cols-3 gap-2 text-xs mb-2">
-                        <div>
-                          <span className="font-semibold text-gray-700">Sector:</span>
-                          <span className="ml-1 text-gray-900">{sub.sector || "-"}</span>
-                        </div>
-                        <div>
-                          <span className="font-semibold text-gray-700">Cost:</span>
-                          <span className="ml-1 text-gray-900">{fmtINR(sub.cost || 0)}</span>
-                        </div>
-                        <div>
-                          <span className="font-semibold text-gray-700">Priority:</span>
-                          <span className="ml-1 text-gray-900">{sub.priority || "-"}</span>
-                        </div>
-                      </div>
-                      <div className="mb-2 text-xs">
-                        <span className="font-semibold text-gray-700">Proposal:</span>
-                        <span className="ml-1 text-gray-900">{sub.proposal || "-"}</span>
-                      </div>
-                      {workImageUrl && (
-                        <div className="mb-2">
-                          <span className="font-semibold text-gray-700 text-xs block mb-1">Work Image:</span>
-                          <div className="border border-gray-300 rounded p-1 inline-block">
-                            {isImageFile(sub.workImage) ? (
-                              <img
-                                src={workImageUrl}
-                                alt="Work"
-                                className="max-w-full max-h-32 rounded cursor-pointer hover:opacity-90"
-                                onClick={() => window.open(workImageUrl, '_blank')}
-                              />
-                            ) : (
-                              <FilePreview file={sub.workImage} defaultName="work-image.jpg" />
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      {detailedReportUrl && (
-                        <div className="mb-2">
-                          <span className="font-semibold text-gray-700 text-xs block mb-1">Estimation Report:</span>
-                          <div className="flex items-center gap-2">
-                            <FilePreview file={sub.detailedReport} defaultName="estimation-report.pdf" />
-                            <a
-                              href={detailedReportUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 text-xs underline"
-                            >
-                              View PDF
-                            </a>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            {/* Works List - Always use table format for both single and multiple works */}
+            <MultipleWorksPreview 
+              submissions={submissions} 
+              crGroups={crGroups}
+            />
           </div>
 
           {/* Committee and Council Files - Show only if single CR or not bulk preview */}

@@ -1677,10 +1677,43 @@ export default function CDMADashboard({
             const isENCPHApproved = status === "Forwarded to CDMA" || (status && status.toLowerCase().includes("forwarded to cdma"));
             
             // Extract verifications from submission
-            const commissionerVerification = previewSubmission.commissionerVerifiedBy ? {
-              name: previewSubmission.commissionerVerifiedBy.name || previewSubmission.commissionerVerifiedBy.designation || "Commissioner",
-              timestamp: previewSubmission.commissionerVerifiedBy.timestamp || null
-            } : null;
+            // Commissioner verification - prioritize commissionerVerifiedBy
+            let commissionerVerification = null;
+            
+            if (previewSubmission.commissionerVerifiedBy) {
+              commissionerVerification = {
+                name: previewSubmission.commissionerVerifiedBy.name || previewSubmission.commissionerVerifiedBy.designation || "Ramesh",
+                timestamp: previewSubmission.commissionerVerifiedBy.timestamp || null
+              };
+            } else if (previewSubmission.verifiedBy && previewSubmission.status === "Approved") {
+              // Only use verifiedBy if status is "Approved" (Commissioner's approval)
+              const designation = (previewSubmission.verifiedBy.designation || "").toLowerCase();
+              if (designation.includes("commissioner") && 
+                  !designation.includes("eeph") && 
+                  !designation.includes("seph") && 
+                  !designation.includes("encph") && 
+                  !designation.includes("cdma")) {
+                commissionerVerification = {
+                  name: previewSubmission.verifiedBy.name || previewSubmission.verifiedBy.designation || "Ramesh",
+                  timestamp: previewSubmission.verifiedBy.timestamp || null
+                };
+              }
+            }
+            
+            // If still not found but workflow has passed Commissioner, default to "Ramesh"
+            if (!commissionerVerification) {
+              const statusLower = status.toLowerCase();
+              if (statusLower.includes("forwarded to cdma") ||
+                  statusLower.includes("eeph approved") ||
+                  statusLower.includes("seph approved") ||
+                  statusLower.includes("encph approved") ||
+                  statusLower.includes("cdma approved")) {
+                commissionerVerification = {
+                  name: "Ramesh",
+                  timestamp: null
+                };
+              }
+            }
             
             const eephVerification = previewSubmission.eephVerifiedBy ? {
               name: previewSubmission.eephVerifiedBy.name || previewSubmission.eephVerifiedBy.designation || "EEPH",
@@ -1826,19 +1859,39 @@ export default function CDMADashboard({
               // Find Commissioner verification
               if (!commissionerData && sub.commissionerVerifiedBy) {
                 commissionerData = {
-                  name: sub.commissionerVerifiedBy.name || sub.commissionerVerifiedBy.designation || "Commissioner",
+                  name: sub.commissionerVerifiedBy.name || sub.commissionerVerifiedBy.designation || "Ramesh",
                   timestamp: sub.commissionerVerifiedBy.timestamp || null
                 };
               }
               
-              // Also check verifiedBy as fallback for Commissioner
-              if (!commissionerData && sub.verifiedBy && 
-                  (!sub.verifiedBy.designation || !sub.verifiedBy.designation.toLowerCase().includes("eeph") && 
-                   !sub.verifiedBy.designation.toLowerCase().includes("seph") && 
-                   !sub.verifiedBy.designation.toLowerCase().includes("encph"))) {
+              // Also check verifiedBy as fallback for Commissioner (only if status is "Approved")
+              if (!commissionerData && sub.verifiedBy && sub.status === "Approved") {
+                const designation = (sub.verifiedBy.designation || "").toLowerCase();
+                if (designation.includes("commissioner") && 
+                    !designation.includes("eeph") && 
+                    !designation.includes("seph") && 
+                    !designation.includes("encph") && 
+                    !designation.includes("cdma")) {
+                  commissionerData = {
+                    name: sub.verifiedBy.name || sub.verifiedBy.designation || "Ramesh",
+                    timestamp: sub.verifiedBy.timestamp || null
+                  };
+                }
+              }
+            }
+            
+            // If still not found but workflow has passed Commissioner, default to "Ramesh"
+            if (!commissionerData) {
+              const status = firstSub.status || "";
+              const statusLower = status.toLowerCase();
+              if (statusLower.includes("forwarded to cdma") ||
+                  statusLower.includes("eeph approved") ||
+                  statusLower.includes("seph approved") ||
+                  statusLower.includes("encph approved") ||
+                  statusLower.includes("cdma approved")) {
                 commissionerData = {
-                  name: sub.verifiedBy.name || sub.verifiedBy.designation || "Commissioner",
-                  timestamp: sub.verifiedBy.timestamp || null
+                  name: "Ramesh",
+                  timestamp: null
                 };
               }
             }

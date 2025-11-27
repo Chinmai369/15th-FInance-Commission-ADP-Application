@@ -1924,22 +1924,43 @@ export default function SEPHDashboard({
             // Commissioner verification - prioritize commissionerVerifiedBy
             // When status is "Forwarded to SEPH" or "EEPH Approved", verifiedBy contains EEPH's info, so we must use commissionerVerifiedBy
             // Also check if verifiedBy has Commissioner designation as a fallback
-            const commissionerVerification = previewSubmission.commissionerVerifiedBy ? {
-              name: previewSubmission.commissionerVerifiedBy.name || previewSubmission.commissionerVerifiedBy.designation || "Commissioner",
-              timestamp: previewSubmission.commissionerVerifiedBy.timestamp || null
-            } : (previewSubmission.verifiedBy && !isEEPHApproved && !isForwardedToSEPH && 
-                 (previewSubmission.verifiedBy.designation?.toLowerCase().includes("commissioner") || 
-                  !previewSubmission.verifiedBy.designation?.toLowerCase().includes("eeph"))) ? {
-              // Only use verifiedBy if status is not EEPH Approved, not Forwarded to SEPH, and designation is Commissioner
-              name: previewSubmission.verifiedBy.name || previewSubmission.verifiedBy.designation || "Commissioner",
-              timestamp: previewSubmission.verifiedBy.timestamp || null
-            } : (previewSubmission.status === "Approved" && previewSubmission.verifiedBy && 
-                 !previewSubmission.verifiedBy.designation?.toLowerCase().includes("eeph") &&
-                 !previewSubmission.verifiedBy.designation?.toLowerCase().includes("seph")) ? {
-              // If status is "Approved" (from Commissioner), use verifiedBy as Commissioner verification
-              name: previewSubmission.verifiedBy.name || previewSubmission.verifiedBy.designation || "Commissioner",
-              timestamp: previewSubmission.verifiedBy.timestamp || null
-            } : null;
+            let commissionerVerification = null;
+            
+            if (previewSubmission.commissionerVerifiedBy) {
+              commissionerVerification = {
+                name: previewSubmission.commissionerVerifiedBy.name || previewSubmission.commissionerVerifiedBy.designation || "Ramesh",
+                timestamp: previewSubmission.commissionerVerifiedBy.timestamp || null
+              };
+            } else if (previewSubmission.verifiedBy && previewSubmission.status === "Approved") {
+              // Only use verifiedBy if status is "Approved" (Commissioner's approval)
+              const designation = (previewSubmission.verifiedBy.designation || "").toLowerCase();
+              if (designation.includes("commissioner") && 
+                  !designation.includes("eeph") && 
+                  !designation.includes("seph") && 
+                  !designation.includes("encph") && 
+                  !designation.includes("cdma")) {
+                commissionerVerification = {
+                  name: previewSubmission.verifiedBy.name || previewSubmission.verifiedBy.designation || "Ramesh",
+                  timestamp: previewSubmission.verifiedBy.timestamp || null
+                };
+              }
+            }
+            
+            // If still not found but workflow has passed Commissioner, default to "Ramesh"
+            if (!commissionerVerification) {
+              const statusLower = status.toLowerCase();
+              if (statusLower.includes("forwarded to seph") || 
+                  statusLower.includes("forwarded to encph") || 
+                  statusLower.includes("forwarded to cdma") ||
+                  statusLower.includes("eeph approved") ||
+                  statusLower.includes("seph approved") ||
+                  statusLower.includes("encph approved")) {
+                commissionerVerification = {
+                  name: "Ramesh",
+                  timestamp: null
+                };
+              }
+            }
             
             console.log("🔍 SEPH Commissioner Verification Debug:", {
               hasCommissionerVerifiedBy: !!previewSubmission.commissionerVerifiedBy,
@@ -2048,19 +2069,80 @@ export default function SEPHDashboard({
             };
 
             // Build timeline data for bulk preview
+            // Extract Commissioner verification - prioritize commissionerVerifiedBy
+            let foundCommissionerVerification = null;
+            
+            // First, search for commissionerVerifiedBy in all submissions (most reliable)
+            for (const sub of bulkPreviewSubmissions) {
+              if (sub.commissionerVerifiedBy) {
+                const name = sub.commissionerVerifiedBy.name || sub.commissionerVerifiedBy.designation;
+                if (name) {
+                  foundCommissionerVerification = {
+                    name: name,
+                    timestamp: sub.commissionerVerifiedBy.timestamp || null
+                  };
+                  break;
+                }
+              }
+            }
+            
+            // If not found, check verifiedBy for Commissioner data (only if status is "Approved")
+            if (!foundCommissionerVerification) {
+              for (const sub of bulkPreviewSubmissions) {
+                if (sub.verifiedBy && sub.status === "Approved") {
+                  const designation = (sub.verifiedBy.designation || "").toLowerCase();
+                  if (designation.includes("commissioner") && 
+                      !designation.includes("eeph") && 
+                      !designation.includes("seph") && 
+                      !designation.includes("encph") && 
+                      !designation.includes("cdma")) {
+                    foundCommissionerVerification = {
+                      name: sub.verifiedBy.name || sub.verifiedBy.designation || "Ramesh",
+                      timestamp: sub.verifiedBy.timestamp || null
+                    };
+                    break;
+                  }
+                }
+              }
+            }
+            
+            // If still not found but workflow has passed Commissioner (status indicates it), default to "Ramesh"
+            if (!foundCommissionerVerification) {
+              const status = firstSub.status || "";
+              const statusLower = status.toLowerCase();
+              // If status indicates it's past Commissioner approval, default to "Ramesh"
+              if (statusLower.includes("forwarded to seph") || 
+                  statusLower.includes("forwarded to encph") || 
+                  statusLower.includes("forwarded to cdma") ||
+                  statusLower.includes("eeph approved") ||
+                  statusLower.includes("seph approved") ||
+                  statusLower.includes("encph approved")) {
+                foundCommissionerVerification = {
+                  name: "Ramesh",
+                  timestamp: null
+                };
+              }
+            }
+            
+            // Extract EEPH verification
+            let foundEEPHVerification = null;
+            for (const sub of bulkPreviewSubmissions) {
+              if (sub.eephVerifiedBy) {
+                foundEEPHVerification = {
+                  name: sub.eephVerifiedBy.name || sub.eephVerifiedBy.designation || "EEPH",
+                  timestamp: sub.eephVerifiedBy.timestamp || null
+                };
+                break;
+              }
+            }
+            
             const timelineData = {
               forwardedFrom: firstSub.forwardedBy || firstSub.forwardedDate ? {
                 name: firstSub.forwardedBy || "Engineer",
                 timestamp: firstSub.forwardedDate || null
               } : null,
-              verifiedBy: firstSub.verifiedBy ? {
-                name: firstSub.verifiedBy.name || "Commissioner",
-                timestamp: firstSub.verifiedBy.timestamp || null
-              } : null,
-              eephVerifiedBy: firstSub.eephVerifiedBy ? {
-                name: firstSub.eephVerifiedBy.name || "EEPH",
-                timestamp: firstSub.eephVerifiedBy.timestamp || null
-              } : null,
+              verifiedBy: foundCommissionerVerification,
+              eephVerifiedBy: foundEEPHVerification,
               sephVerifiedBy: null, // Will be added when checkbox is checked
               forwardingTo: null
             };
