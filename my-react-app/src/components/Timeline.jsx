@@ -55,19 +55,31 @@ export default function Timeline({ timeline, user, isVerified = false }) {
       });
     }
 
-    // Step 2: Commissioner - Always show if exists
+    // Step 2: Commissioner - Always show if verifiedBy exists
     if (timeline.verifiedBy) {
       items.push({
         step: 2,
         color: "green",
-        designation: "Commissioner",
+        designation: timeline.verifiedBy.designation || "Commissioner",
         name: timeline.verifiedBy.name || "-",
         timestamp: timeline.verifiedBy.timestamp
       });
     }
 
-    // Step 3: EEPH - Show for SEPH, ENCPH, and CDMA
+    // Step 3: EEPH - Show if eephVerifiedBy exists (for SEPH, ENCPH, CDMA) OR if current user is EEPH and checkbox is checked
+    // But don't show if currentUser is being added (to avoid duplicate)
     if (timeline.eephVerifiedBy && (userRole === "seph" || userRole === "encph" || userRole === "cdma")) {
+      items.push({
+        step: 3,
+        color: "orange",
+        designation: "EEPH",
+        name: timeline.eephVerifiedBy.name || "-",
+        timestamp: timeline.eephVerifiedBy.timestamp
+      });
+    }
+    
+    // Also show EEPH if it exists in timeline for EEPH user (when viewing their own verification)
+    if (timeline.eephVerifiedBy && userRole === "eeph" && !isVerified) {
       items.push({
         step: 3,
         color: "orange",
@@ -101,7 +113,8 @@ export default function Timeline({ timeline, user, isVerified = false }) {
 
     // Current User Verification (if checkbox is checked)
     if (isVerified && timeline.currentUser && timeline.currentUser.name) {
-      const currentUserDesignation = getRoleDesignation(user?.role);
+      // Use designation from timeline.currentUser if available, otherwise calculate from role
+      const currentUserDesignation = timeline.currentUser.designation || getRoleDesignation(user?.role);
       let stepNumber = 2; // Default for Commissioner
       let color = "green";
 
