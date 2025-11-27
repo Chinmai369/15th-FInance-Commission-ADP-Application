@@ -688,6 +688,16 @@ export default function ENCPHDashboard({
                 designation: dataToUse.verifiedPersonDesignation,
                 timestamp: dataToUse.verificationTimestamp
               } : null,
+              // Explicitly set encphVerifiedBy when ENCPH approves
+              encphVerifiedBy: dataToUse ? {
+                name: dataToUse.verifiedPersonName,
+                designation: dataToUse.verifiedPersonDesignation,
+                timestamp: dataToUse.verificationTimestamp
+              } : null,
+              // Preserve all previous verifications
+              commissionerVerifiedBy: currentSub?.commissionerVerifiedBy || f.commissionerVerifiedBy,
+              eephVerifiedBy: currentSub?.eephVerifiedBy || f.eephVerifiedBy,
+              sephVerifiedBy: currentSub?.sephVerifiedBy || f.sephVerifiedBy,
               // Explicitly preserve all file properties - check multiple sources
               workImage: previewSubmission.workImage || f.workImage || currentSub?.workImage || null,
               detailedReport: previewSubmission.detailedReport || f.detailedReport || currentSub?.detailedReport || null,

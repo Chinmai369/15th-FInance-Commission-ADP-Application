@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import SidebarMenu from "./SidebarMenu";
 import { useLocation as useRouterLocation, useNavigate } from "react-router-dom";
 import PreviewModal from "./PreviewModal";
+import { generateCDMAApprovalPDF } from "./CDMAApprovalPDF";
 
 const TOTAL_BUDGET = 1000000;
 const fmtINR = (n) =>
@@ -2219,7 +2220,8 @@ export default function AdminDashboard({
                             </select>
                           </div>
                         </th>
-                        <th className="p-2 whitespace-nowrap">Remarks</th>
+                        <th className="p-2 whitespace-nowrap border-r border-gray-300">Remarks</th>
+                        <th className="p-2 whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2265,7 +2267,59 @@ export default function AdminDashboard({
                             <FilePreview file={s.councilResolution} defaultName="council-resolution.pdf" />
                           </td>
                           <td className="p-2 text-green-600 border-r border-gray-300">CDMA Approved</td>
-                          <td className="p-2 text-gray-600 max-w-xs truncate" title={s.remarks || "-"}>{s.remarks || "-"}</td>
+                          <td className="p-2 text-gray-600 max-w-xs truncate border-r border-gray-300" title={s.remarks || "-"}>{s.remarks || "-"}</td>
+                          <td className="p-2">
+                            <button
+                              onClick={async () => {
+                                // Build timeline data from submission
+                                const timelineData = {
+                                  forwardedFrom: s.forwardedBy || s.forwardedDate ? {
+                                    name: s.forwardedBy || "Engineer",
+                                    timestamp: s.forwardedDate || null
+                                  } : null,
+                                  verifiedBy: s.commissionerVerifiedBy ? {
+                                    name: s.commissionerVerifiedBy.name || s.commissionerVerifiedBy.designation || "Commissioner",
+                                    timestamp: s.commissionerVerifiedBy.timestamp || null
+                                  } : null,
+                                  eephVerifiedBy: s.eephVerifiedBy ? {
+                                    name: s.eephVerifiedBy.name || s.eephVerifiedBy.designation || "EEPH",
+                                    timestamp: s.eephVerifiedBy.timestamp || null
+                                  } : null,
+                                  sephVerifiedBy: s.sephVerifiedBy ? {
+                                    name: s.sephVerifiedBy.name || s.sephVerifiedBy.designation || "SEPH",
+                                    timestamp: s.sephVerifiedBy.timestamp || null
+                                  } : (s.status === "SEPH Approved" && s.verifiedBy && 
+                                       !s.verifiedBy.designation?.toLowerCase().includes("encph") ? {
+                                    name: s.verifiedBy.name || s.verifiedBy.designation || "SEPH",
+                                    timestamp: s.verifiedBy.timestamp || null
+                                  } : null),
+                                  encphVerifiedBy: s.encphVerifiedBy ? {
+                                    name: s.encphVerifiedBy.name || s.encphVerifiedBy.designation || "ENCPH",
+                                    timestamp: s.encphVerifiedBy.timestamp || null
+                                  } : ((s.status === "Forwarded to CDMA" || s.status === "ENCPH Approved") && 
+                                       s.verifiedBy && !s.verifiedBy.designation?.toLowerCase().includes("cdma") ? {
+                                    name: s.verifiedBy.name || s.verifiedBy.designation || "ENCPH",
+                                    timestamp: s.verifiedBy.timestamp || null
+                                  } : null)
+                                };
+                                
+                                // Generate PDF (async)
+                                try {
+                                  await generateCDMAApprovalPDF(s, timelineData, user?.ulb || "Vijayawada");
+                                } catch (error) {
+                                  console.error("Error generating PDF:", error);
+                                  alert("Error generating PDF. Please try again.");
+                                }
+                              }}
+                              className="px-3 py-1.5 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-colors flex items-center gap-1"
+                              title="Generate PDF Document"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              Generate PDF
+                            </button>
+                          </td>
                       </tr>
                     ))}
                 </tbody>
