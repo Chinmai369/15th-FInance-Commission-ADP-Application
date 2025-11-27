@@ -1004,6 +1004,8 @@ export default function AdminDashboard({
   // UI helpers for disabled state
   const disableCRFields = Boolean(activeCR); // lock CR fields when activeCR exists
   const submittedCount = submissions.length + (activeCR ? activeCR.submittedCount : 0);
+  // Disable form fields when submitted works count matches the number of works
+  const isFormDisabled = numberOfWorks && (submissions.length + (isEditing ? 1 : 0)) >= Number(numberOfWorks);
 
   const [selectedMenuItem, setSelectedMenuItem] = useState("dashboard");
   const [isMenuOpen, setIsMenuOpen] = useState(true);
@@ -1481,7 +1483,7 @@ export default function AdminDashboard({
                       <input
                         value={crNumber}
                         onChange={(e) => setCrNumber(e.target.value)}
-                        disabled={submissions.length > 0}
+                        disabled={submissions.length > 0 || isFormDisabled}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                         placeholder="Enter CR number"
                       />
@@ -1494,7 +1496,7 @@ export default function AdminDashboard({
                           type="date"
                           value={crDate}
                           onChange={(e) => setCrDate(e.target.value)}
-                          disabled={submissions.length > 0}
+                          disabled={submissions.length > 0 || isFormDisabled}
                           min={crDateRange.min}
                           max={new Date().toISOString().split('T')[0]}
                           className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -1513,7 +1515,7 @@ export default function AdminDashboard({
                             setNumberOfWorks(value);
                           }
                         }}
-                        disabled={submissions.length > 0}
+                        disabled={submissions.length > 0 || isFormDisabled}
                         className={`w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${submittedCount < Number(numberOfWorks || 0) && numberOfWorks ? "border-red-500 bg-red-50" : "border-gray-300"}`}
                         placeholder="Enter number"
                       />
@@ -1527,7 +1529,8 @@ export default function AdminDashboard({
                       <select 
                         value={workType} 
                         onChange={(e) => setWorkType(e.target.value)} 
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={isFormDisabled}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       >
                         <option value="">Select sector</option>
                         <option>SWM/LQM</option>
@@ -1565,7 +1568,8 @@ export default function AdminDashboard({
                     <input
                       value={proposalName}
                       onChange={(e) => setProposalName(e.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={isFormDisabled}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       placeholder="Enter name of the work"
                     />
                   </div>
@@ -1580,7 +1584,8 @@ export default function AdminDashboard({
                           <input 
                             value={area} 
                             onChange={(e) => setArea(e.target.value)} 
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white" 
+                            disabled={isFormDisabled}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed" 
                             placeholder="Area"
                           />
                         </div>
@@ -1589,7 +1594,8 @@ export default function AdminDashboard({
                           <input 
                             value={locality} 
                             onChange={(e) => setLocality(e.target.value)} 
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white" 
+                            disabled={isFormDisabled}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed" 
                             placeholder="Locality"
                           />
                         </div>
@@ -1604,8 +1610,9 @@ export default function AdminDashboard({
                                 setWardNo(value);
                               }
                             }} 
+                            disabled={isFormDisabled}
                             maxLength={3}
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white" 
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed" 
                             placeholder="Ward No"
                           />
                         </div>
@@ -1638,7 +1645,8 @@ export default function AdminDashboard({
                             </a>
                             <button
                               onClick={(e) => { e.stopPropagation(); setLatlong(""); }}
-                              className="text-xs text-gray-500 hover:text-gray-700 ml-2 px-2 py-1"
+                              disabled={isFormDisabled}
+                              className="text-xs text-gray-500 hover:text-gray-700 ml-2 px-2 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
                               title="Clear"
                             >
                               ✕
@@ -1666,7 +1674,8 @@ export default function AdminDashboard({
                           <input 
                             value={latlong} 
                             onChange={(e) => setLatlong(e.target.value)} 
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 pr-12 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                            disabled={isFormDisabled}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 pr-12 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed" 
                             placeholder="Coordinates or Google Maps URL"
                           />
                           <button
@@ -1718,7 +1727,8 @@ export default function AdminDashboard({
                           }
                         }
                       }}
-                      className={`w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${costError ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                      disabled={isFormDisabled}
+                      className={`w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${costError ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                       placeholder="Enter amount"
                     />
                     {costError && <p className="mt-1 text-xs text-red-600">{costError}</p>}
@@ -1735,7 +1745,8 @@ export default function AdminDashboard({
                           setPrioritization(value);
                         }
                       }} 
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                      disabled={isFormDisabled}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed" 
                       placeholder="Priority"
                     />
                   </div>
@@ -1766,6 +1777,7 @@ export default function AdminDashboard({
                       type="file" 
                       accept="image/*" 
                       ref={workImageInputRef}
+                      disabled={isFormDisabled}
                       onChange={(e) => {
                         const file = e.target.files?.[0] || null;
                         if (file && !file.type.startsWith('image/')) {
@@ -1777,7 +1789,7 @@ export default function AdminDashboard({
                         setWorkImage(file);
                         setFormError("");
                       }} 
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed" 
                     />
                   </div>
 
@@ -1805,6 +1817,7 @@ export default function AdminDashboard({
                       type="file" 
                       accept=".pdf,application/pdf" 
                       ref={detailedReportInputRef}
+                      disabled={isFormDisabled}
                       onChange={(e) => {
                         const file = e.target.files?.[0] || null;
                         if (file && file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
@@ -1816,7 +1829,7 @@ export default function AdminDashboard({
                         setDetailedReport(file);
                         setFormError("");
                       }} 
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed" 
                     />
                   </div>
                 </div>
