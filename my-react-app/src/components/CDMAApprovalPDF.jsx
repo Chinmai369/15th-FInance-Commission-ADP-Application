@@ -9,10 +9,43 @@ export const generateCDMAApprovalPDF = async (submission, timeline, ulbName = ""
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 15; // Outer margin
+  const borderOffset = 5; // Offset for decorative border
+  const margin = 15 + borderOffset; // Outer margin (adjusted for border)
   const sectionPadding = 5; // Internal padding inside each section border
   const bottomMargin = 20; // Space reserved at bottom for footer
   let yPosition = margin;
+  
+  // Draw decorative certificate border (blue and gold pattern)
+  const borderWidth = 2;
+  
+  // Outer blue border
+  doc.setDrawColor(0, 51, 102); // Dark blue
+  doc.setLineWidth(borderWidth);
+  doc.rect(borderOffset, borderOffset, pageWidth - borderOffset * 2, pageHeight - borderOffset * 2);
+  
+  // Inner gold border
+  doc.setDrawColor(212, 175, 55); // Gold color
+  doc.setLineWidth(1);
+  doc.rect(borderOffset + 3, borderOffset + 3, pageWidth - (borderOffset + 3) * 2, pageHeight - (borderOffset + 3) * 2);
+  
+  // Add subtle watermark background text (repeating pattern with proper spacing)
+  doc.setTextColor(240, 240, 240); // Very light gray - subtle watermark
+  doc.setFont('times', 'normal');
+  doc.setFontSize(16);
+  const watermarkText = "GOVERNMENT OF ANDHRA PRADESH - 15th FINANCE COMMISSION";
+  
+  // Calculate text width to prevent overlap
+  const watermarkTextWidth = doc.getTextWidth(watermarkText);
+  
+  // Draw watermark text repeating across the page with proper spacing (avoiding header and footer areas)
+  for (let y = 50; y < pageHeight - 50; y += 80) { // Increased vertical spacing from 60 to 80
+    for (let x = 20; x < pageWidth - 20; x += watermarkTextWidth + 40) { // Spacing based on text width + gap
+      doc.text(watermarkText, x, y);
+    }
+  }
+  
+  // Reset text color
+  doc.setTextColor(0, 0, 0);
   
   // Helper function to check if we need a new page
   const checkPageBreak = (requiredHeight) => {
@@ -110,7 +143,7 @@ export const generateCDMAApprovalPDF = async (submission, timeline, ulbName = ""
     });
   };
 
-  // Helper function to load logo from public folder
+  // Helper function to load AP logo from public folder
   const loadLogo = () => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -130,6 +163,53 @@ export const generateCDMAApprovalPDF = async (submission, timeline, ulbName = ""
       };
       img.onerror = () => resolve(null);
       img.src = '/ap-logo.jpeg';
+    });
+  };
+
+  // Helper function to load 15th Finance Commission logo from public folder
+  const load15FCLogo = () => {
+    return new Promise((resolve) => {
+      // Try multiple possible filenames
+      const possiblePaths = [
+        '/15th-fc-logo.jpeg',
+        '/15th-fc-logo.jpg',
+        '/15fc-logo.jpeg',
+        '/15fc-logo.jpg',
+        '/15th-finance-commission-logo.jpeg',
+        '/15th-finance-commission-logo.jpg'
+      ];
+      
+      let currentIndex = 0;
+      
+      const tryNext = () => {
+        if (currentIndex >= possiblePaths.length) {
+          resolve(null);
+          return;
+        }
+        
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          try {
+            const base64 = canvas.toDataURL('image/jpeg', 0.9);
+            resolve(base64);
+          } catch (e) {
+            resolve(null);
+          }
+        };
+        img.onerror = () => {
+          currentIndex++;
+          tryNext();
+        };
+        img.src = possiblePaths[currentIndex];
+      };
+      
+      tryNext();
     });
   };
 
@@ -194,55 +274,78 @@ export const generateCDMAApprovalPDF = async (submission, timeline, ulbName = ""
     return name;
   };
 
-  // Header Section - Certificate Style
+  // Header Section - Certificate Style (with white background to cover watermark)
   doc.setFillColor(255, 255, 255);
   const headerHeight = 35;
-  doc.rect(0, 0, pageWidth, headerHeight, 'F');
+  doc.rect(borderOffset + 3, borderOffset + 3, pageWidth - (borderOffset + 3) * 2, headerHeight, 'F');
   
-  // Load and add AP Logo
+  // Load and add AP Logo (positioned to avoid border overlap - left side)
   try {
     const logoBase64 = await loadLogo();
     if (logoBase64) {
-      const logoSize = 20;
-      const logoX = margin + 3;
-      const logoY = 5;
+      const logoSize = 18; // Slightly smaller
+      const logoX = borderOffset + 8; // Positioned inside border with padding (left side)
+      const logoY = borderOffset + 8; // Positioned inside border with padding
       doc.addImage(logoBase64, 'JPEG', logoX, logoY, logoSize, logoSize);
     }
   } catch (e) {
-    console.log('Logo not loaded:', e);
+    console.log('AP Logo not loaded:', e);
   }
   
-  // Government Title - Times font for formal certificate look
+  // Load and add 15th Finance Commission Logo (positioned on right side)
+  try {
+    const fcLogoBase64 = await load15FCLogo();
+    if (fcLogoBase64) {
+      const logoSize = 18; // Same size as AP logo
+      const logoX = pageWidth - borderOffset - 8 - logoSize; // Positioned on right side
+      const logoY = borderOffset + 8; // Same Y position as AP logo
+      doc.addImage(fcLogoBase64, 'JPEG', logoX, logoY, logoSize, logoSize);
+    }
+  } catch (e) {
+    console.log('15th FC Logo not loaded:', e);
+  }
+  
+  // Government Title - Times font for formal certificate look (adjusted for border)
   doc.setFontSize(14);
   doc.setFont('times', 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.text('GOVERNMENT OF ANDHRA PRADESH', pageWidth / 2, 12, { align: 'center' });
+  doc.text('GOVERNMENT OF ANDHRA PRADESH', pageWidth / 2, borderOffset + 15, { align: 'center' });
   
   doc.setFontSize(11);
   doc.setFont('times', 'normal');
-  doc.text('15th Finance Commission', pageWidth / 2, 18, { align: 'center' });
+  doc.text('15th Finance Commission', pageWidth / 2, borderOffset + 21, { align: 'center' });
   
   if (ulbName) {
     doc.setFontSize(10);
     doc.setFont('times', 'bold');
-    doc.text(ulbName.toUpperCase(), pageWidth / 2, 24, { align: 'center' });
+    doc.text(ulbName.toUpperCase(), pageWidth / 2, borderOffset + 27, { align: 'center' });
   }
   
-  // Decorative header bottom border - double line for certificate look
+  // Decorative header bottom border - double line for certificate look (adjusted for border)
+  const headerBottomY = borderOffset + 3 + headerHeight;
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.5);
-  doc.line(0, headerHeight - 2, pageWidth, headerHeight - 2);
+  doc.line(borderOffset + 3, headerBottomY - 2, pageWidth - borderOffset - 3, headerBottomY - 2);
   doc.setLineWidth(0.3);
-  doc.line(0, headerHeight, pageWidth, headerHeight);
+  doc.line(borderOffset + 3, headerBottomY, pageWidth - borderOffset - 3, headerBottomY);
   
-  yPosition = headerHeight + 10; // More space after header
+  yPosition = headerBottomY + 10; // More space after header
   
-  // Certificate Title - Formal certificate style
-  doc.setFontSize(16);
+  // Certificate Title - Elegant certificate style (like the example)
+  doc.setFontSize(18);
   doc.setFont('times', 'bold');
-  doc.setTextColor(0, 0, 0);
+  doc.setTextColor(0, 51, 102); // Dark blue for certificate title
   doc.text('CDMA APPROVED WORK CERTIFICATE', pageWidth / 2, yPosition, { align: 'center' });
-  yPosition += 8; // Equal spacing
+  
+  // Add decorative underline for certificate title
+  const titleWidth = doc.getTextWidth('CDMA APPROVED WORK CERTIFICATE');
+  const titleUnderlineY = yPosition + 2;
+  doc.setDrawColor(212, 175, 55); // Gold color
+  doc.setLineWidth(1.5);
+  doc.line(pageWidth / 2 - titleWidth / 2 - 5, titleUnderlineY, pageWidth / 2 + titleWidth / 2 + 5, titleUnderlineY);
+  
+  doc.setTextColor(0, 0, 0); // Reset to black
+  yPosition += 10; // More spacing after title
   
   // Introductory Statement - Certificate format
   doc.setFontSize(9);
@@ -372,42 +475,41 @@ export const generateCDMAApprovalPDF = async (submission, timeline, ulbName = ""
   doc.line(margin, combinedSectionY + 6, pageWidth - margin, combinedSectionY + 6);
   
   yPosition = combinedSectionY + 9;
-  let sectionContentBottom = yPosition;
+  const contentStartY = yPosition;
   
-  // Work Image (if available)
+  // Calculate available width for each side
+  const availableWidth = pageWidth - margin * 2 - sectionPadding * 2;
+  const imageWidth = 40; // Width for image section
+  const documentsWidth = availableWidth - imageWidth - 10; // 10mm gap between image and documents
+  const imageX = margin + sectionPadding;
+  const documentsX = imageX + imageWidth + 10; // 10mm gap after image
+  
+  let imageBottom = contentStartY;
+  let documentsBottom = contentStartY;
+  
+  // Work Image (Left side) - Reduced size
   if (submission.workImage) {
     try {
       const base64Image = await imageToBase64(submission.workImage);
       if (base64Image) {
-        const imgWidth = 30;
-        const imgHeight = 20;
-        const imgX = pageWidth / 2 - imgWidth / 2;
-        const imgY = yPosition;
+        const imgWidth = 25; // Reduced from 35mm
+        const imgHeight = 18; // Reduced from 25mm
+        const imgY = contentStartY;
         
-        doc.addImage(base64Image, 'JPEG', imgX, imgY, imgWidth, imgHeight);
-        sectionContentBottom = imgY + imgHeight + 4; // 4mm spacing after image
-        yPosition = sectionContentBottom;
+        doc.addImage(base64Image, 'JPEG', imageX, imgY, imgWidth, imgHeight);
+        imageBottom = imgY + imgHeight;
       }
     } catch (e) {
       doc.setFontSize(8);
       doc.setFont('times', 'normal');
       doc.setTextColor(150, 150, 150);
-      doc.text('Image not available', pageWidth / 2, yPosition + 10, { align: 'center' });
+      doc.text('Image not available', imageX + imageWidth / 2, contentStartY + 10, { align: 'center' });
       doc.setTextColor(0, 0, 0);
-      sectionContentBottom = yPosition + 10 + 4;
-      yPosition = sectionContentBottom;
+      imageBottom = contentStartY + 15;
     }
   }
   
-  // Attached Documents
-  if (yPosition === combinedSectionY + 9) {
-    // No image, start documents at section start
-    yPosition = combinedSectionY + 9;
-  } else {
-    // Image was added, add spacing before documents
-    yPosition += 4;
-  }
-
+  // Attached Documents (Right side) - in single row
   doc.setFontSize(8);
   doc.setFont('times', 'normal');
   
@@ -418,10 +520,11 @@ export const generateCDMAApprovalPDF = async (submission, timeline, ulbName = ""
   ];
 
   const docLineSpacing = 4; // Equal spacing
-  let docX = margin + sectionPadding;
-  let maxContentY = yPosition;
+  let currentDocY = contentStartY;
+  let docItemX = documentsX;
+  const docItemWidth = documentsWidth / 3; // Divide into 3 columns
   
-  documents.forEach((docItem) => {
+  documents.forEach((docItem, index) => {
     const fileName = getCleanFileName(docItem.file, docItem.defaultName);
     const isUploaded = !!docItem.file;
     
@@ -429,15 +532,15 @@ export const generateCDMAApprovalPDF = async (submission, timeline, ulbName = ""
     doc.setFont('times', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(60, 60, 60);
-    doc.text(`${docItem.name}:`, docX, yPosition);
+    doc.text(`${docItem.name}:`, docItemX, currentDocY);
     
     // File name
     if (fileName) {
       doc.setFont('times', 'normal');
       doc.setFontSize(8);
       doc.setTextColor(0, 0, 0);
-      const displayName = fileName.length > 25 ? fileName.substring(0, 22) + '...' : fileName;
-      doc.text(displayName, docX, yPosition + docLineSpacing);
+      const displayName = fileName.length > 20 ? fileName.substring(0, 17) + '...' : fileName;
+      doc.text(displayName, docItemX, currentDocY + docLineSpacing);
     }
     
     // Status
@@ -445,27 +548,29 @@ export const generateCDMAApprovalPDF = async (submission, timeline, ulbName = ""
     doc.setFont('times', 'normal');
     if (isUploaded) {
       doc.setTextColor(0, 128, 0);
-      doc.text('Uploaded: Yes', docX, yPosition + docLineSpacing * 2);
-      doc.text('Verified: Yes', docX, yPosition + docLineSpacing * 3);
+      doc.text('Uploaded: Yes', docItemX, currentDocY + docLineSpacing * 2);
+      doc.text('Verified: Yes', docItemX, currentDocY + docLineSpacing * 3);
     } else {
       doc.setTextColor(150, 150, 150);
-      doc.text('Uploaded: No', docX, yPosition + docLineSpacing * 2);
-      doc.text('Verified: No', docX, yPosition + docLineSpacing * 3);
+      doc.text('Uploaded: No', docItemX, currentDocY + docLineSpacing * 2);
+      doc.text('Verified: No', docItemX, currentDocY + docLineSpacing * 3);
     }
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(8);
     
-    // Track maximum Y position for this column (last line is at yPosition + docLineSpacing * 3)
-    const itemBottomY = yPosition + docLineSpacing * 3;
-    if (itemBottomY > maxContentY) {
-      maxContentY = itemBottomY;
+    // Track bottom position for documents
+    const itemBottomY = currentDocY + docLineSpacing * 3;
+    if (itemBottomY > documentsBottom) {
+      documentsBottom = itemBottomY;
     }
     
-    docX += 58;
+    // Move to next column (same row)
+    docItemX += docItemWidth;
   });
 
   // Calculate actual height needed for combined section (title 6mm + content + bottom padding)
-  const combinedContentBottom = Math.max(sectionContentBottom, maxContentY) + sectionPadding;
+  // Use the maximum of image bottom or documents bottom
+  const combinedContentBottom = Math.max(imageBottom, documentsBottom) + sectionPadding;
   const combinedSectionHeight = combinedContentBottom - combinedSectionY;
   
   // Draw border around combined section
@@ -624,10 +729,10 @@ export const generateCDMAApprovalPDF = async (submission, timeline, ulbName = ""
         timelineEndY = timelineStartY;
       }
 
-      // Step number circle - proper spacing from left border
+      // Step number circle - proper spacing from left border (reduced size for neat display)
       const circleX = margin + sectionPadding + 2;
       const circleY = yPosition;
-      const circleRadius = 3.5; // Slightly larger for better visibility
+      const circleRadius = 2.5; // Reduced from 3.5 to 2.5 for neater display
       
       // Set color based on step
       if (item.step === 6) doc.setFillColor(128, 0, 128); // Purple for CDMA
@@ -641,16 +746,16 @@ export const generateCDMAApprovalPDF = async (submission, timeline, ulbName = ""
       doc.setLineWidth(0.2);
       doc.circle(circleX, circleY, circleRadius);
       
-      // Step number in circle
+      // Step number in circle (smaller font to fit reduced circle)
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7);
-      doc.text(item.step.toString(), circleX, circleY + 1, { align: 'center' });
+      doc.setFontSize(5);
+      doc.text(item.step.toString(), circleX, circleY + 0.5, { align: 'center' });
       doc.setFontSize(8);
       doc.setTextColor(0, 0, 0);
 
       // Verification text - proper spacing from circle, clean formatting
-      const textX = circleX + circleRadius + 5; // 5mm gap after circle for clean spacing
+      const textX = circleX + circleRadius + 4; // 4mm gap after circle for clean spacing (adjusted for smaller circle)
       const textWidth = pageWidth - textX - margin - sectionPadding; // Available width for text
       const timelineLineSpacing = 4; // Equal spacing between timeline items
       
@@ -762,44 +867,52 @@ export const generateCDMAApprovalPDF = async (submission, timeline, ulbName = ""
       : "";
 
     const fullText = acknowledgementText + timestampText;
-    // Text width should account for left padding and space for authority block on right
-    // Reserve space for authority block (about 45mm from right)
-    const authorityBlockWidth = 45;
-    const textWidth = pageWidth - margin - sectionPadding - authorityBlockWidth - sectionPadding;
+    // Text width - full width since footer note is moved to end
+    const textWidth = pageWidth - margin * 2 - sectionPadding * 2;
     const lines = doc.splitTextToSize(fullText, textWidth);
     doc.text(lines, margin + sectionPadding, yPosition);
     
     // Calculate actual content bottom (lines * equal line spacing)
     ackMainTextBottom = yPosition + (lines.length * ackLineSpacing);
-    ackContentBottom = ackMainTextBottom + sectionPadding;
   } else {
-    // Even if no content, ensure minimum height (title 6mm + content area + bottom padding)
+    // Even if no content, ensure minimum height
     ackMainTextBottom = yPosition + ackLineSpacing;
-    ackContentBottom = ackMainTextBottom + sectionPadding;
   }
   
-  // Authority Section (Right side) - properly aligned within acknowledgement section
-  const authorityX = pageWidth - margin - sectionPadding;
-  const authorityY = ackY + 9; // Start at same Y as main text
+  // Position verified mark at bottom right of acknowledgement section
+  const tickMarkX = pageWidth - margin - sectionPadding - 8; // 8mm from right edge
+  const tickCircleRadius = 4;
+  const spacingAfterText = 3; // Space between text and mark (moved up slightly)
+  const tickMarkY = ackMainTextBottom + spacingAfterText; // Position mark below text
   
-  doc.setFontSize(8);
-  doc.setFont('times', 'bold');
-  doc.setTextColor(0, 0, 0);
-  doc.text('CDMA', authorityX, authorityY, { align: 'right' });
+  // Draw green circle for tick mark
+  doc.setFillColor(0, 128, 0); // Green color
+  doc.setDrawColor(0, 128, 0);
+  doc.setLineWidth(0.5);
+  doc.circle(tickMarkX, tickMarkY + tickCircleRadius, tickCircleRadius, 'FD'); // Filled circle with border
   
+  // Draw white tick mark inside circle
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(1);
+  // Draw checkmark (tick) shape
+  const tickSize = 2.5;
+  const tickCenterY = tickMarkY + tickCircleRadius;
+  doc.line(tickMarkX - tickSize * 0.7, tickCenterY, tickMarkX - tickSize * 0.2, tickCenterY + tickSize * 0.5);
+  doc.line(tickMarkX - tickSize * 0.2, tickCenterY + tickSize * 0.5, tickMarkX + tickSize * 0.7, tickCenterY - tickSize * 0.5);
+  
+  // Add "Verified by CDMA" text below tick mark (moved up slightly)
+  const verifiedTextY = tickMarkY + tickCircleRadius * 2 + 1; // Reduced spacing (moved up)
   doc.setFontSize(7);
-  doc.setFont('times', 'normal');
-  doc.text('Commissioner & Director', authorityX, authorityY + ackLineSpacing, { align: 'right' });
-  doc.text('of Municipal Administration', authorityX, authorityY + ackLineSpacing * 2, { align: 'right' });
-  doc.text('Government of Andhra Pradesh', authorityX, authorityY + ackLineSpacing * 3, { align: 'right' });
+  doc.setFont('times', 'bold');
+  doc.setTextColor(0, 128, 0);
+  doc.text('Verified by CDMA', tickMarkX, verifiedTextY, { align: 'center' });
+  doc.setTextColor(0, 0, 0);
   
-  // Authority block height - using equal spacing
-  const authorityBottom = authorityY + (ackLineSpacing * 4); // 4 lines with equal spacing
-  
-  // Calculate final height - use the maximum of main text bottom or authority bottom
-  const maxContentBottom = Math.max(ackMainTextBottom, authorityBottom);
-  const finalAckContentBottom = maxContentBottom + sectionPadding;
-  const ackHeight = Math.max(minAckHeight, finalAckContentBottom - ackY);
+  // Calculate final height including text, mark, and "Verified by CDMA"
+  const verifiedTextBottom = verifiedTextY + 4; // Space for text
+  const maxContentBottom = Math.max(ackMainTextBottom, verifiedTextBottom);
+  const finalContentBottom = maxContentBottom + sectionPadding;
+  const ackHeight = Math.max(minAckHeight, finalContentBottom - ackY);
   
   // Draw acknowledgement border
   doc.setDrawColor(100, 100, 100);
@@ -807,18 +920,37 @@ export const generateCDMAApprovalPDF = async (submission, timeline, ulbName = ""
   doc.rect(margin, ackY, pageWidth - margin * 2, ackHeight);
   
   // Update yPosition after acknowledgement
-  yPosition = ackY + ackHeight;
-
-  // Footer Note - Times font
-  const footerY = pageHeight - 10;
+  yPosition = ackY + ackHeight + 8; // 8mm spacing after acknowledgement
+  
+  // Authority Section - Moved to very bottom of certificate (before footer note)
+  const authoritySpacing = 10; // Line spacing between acknowledgement and authority
+  const authorityY = yPosition + authoritySpacing;
+  
+  // CDMA designation
+  const authorityX = pageWidth - margin - sectionPadding;
+  doc.setFontSize(9);
+  doc.setFont('times', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('CDMA', authorityX, authorityY, { align: 'right' });
+  
+  // Commissioner & Director details
+  doc.setFontSize(8);
+  doc.setFont('times', 'normal');
+  doc.text('Commissioner & Director', authorityX, authorityY + 5, { align: 'right' });
+  doc.text('of Municipal Administration', authorityX, authorityY + 9, { align: 'right' });
+  doc.text('Government of Andhra Pradesh', authorityX, authorityY + 13, { align: 'right' });
+  
+  // Footer Note - Display at very end of page (after authority section)
+  const footerSpacing = 10; // Line spacing between authority and footer
+  const footerY = authorityY + 13 + footerSpacing;
   doc.setFontSize(7);
   doc.setFont('times', 'italic');
   doc.setTextColor(100, 100, 100);
   const footerNote = "Note: This certificate is generated electronically and can be verified using the registration details mentioned above.";
-  const footerLines = doc.splitTextToSize(footerNote, pageWidth - margin * 2);
+  const footerLines = doc.splitTextToSize(footerNote, pageWidth - margin * 2 - sectionPadding * 2);
   doc.text(footerLines, pageWidth / 2, footerY, { align: 'center' });
   
-  // Generation date
+  // Generation date (below footer note)
   doc.setFontSize(7);
   doc.setFont('times', 'normal');
   doc.text('Generated on ' + new Date().toLocaleString('en-IN', {
@@ -828,7 +960,7 @@ export const generateCDMAApprovalPDF = async (submission, timeline, ulbName = ""
     hour: '2-digit',
     minute: '2-digit',
     timeZone: 'Asia/Kolkata'
-  }), pageWidth / 2, footerY + 5, { align: 'center' });
+  }), pageWidth / 2, footerY + footerLines.length * 3.5 + 3, { align: 'center' });
 
   // Save PDF
   const fileName = `CDMA_Approval_${submission.crNumber || submission.id}_${new Date().getTime()}.pdf`;
