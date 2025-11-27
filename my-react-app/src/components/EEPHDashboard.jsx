@@ -292,6 +292,8 @@ export default function EEPHDashboard({
   const [showBulkForwardModal, setShowBulkForwardModal] = useState(false);
   const [bulkApprovedItems, setBulkApprovedItems] = useState([]);
   const [forwardConfirmed, setForwardConfirmed] = useState(false);
+  const [showBulkPreviewModal, setShowBulkPreviewModal] = useState(false);
+  const [bulkPreviewSubmissions, setBulkPreviewSubmissions] = useState([]);
 
   const urlCache = useRef([]);
 
@@ -1009,9 +1011,18 @@ export default function EEPHDashboard({
       return;
     }
 
-    // Open approval remarks modal
-    setShowBulkApproveModal(true);
-    setBulkApproveRemarks("");
+    // Get all selected submissions and show preview first
+    const selectedSubmissions = forwardedSubmissions.filter((f) => 
+      selectedItems.includes(f.id)
+    );
+    
+    if (selectedSubmissions.length === 0) {
+      showAlert("Selected items not found.", "error");
+      return;
+    }
+
+    setBulkPreviewSubmissions(selectedSubmissions);
+    setShowBulkPreviewModal(true);
   };
 
   const confirmBulkApprove = () => {
@@ -2193,6 +2204,129 @@ export default function EEPHDashboard({
                 verificationWord={verificationData?.verificationWord || ""}
                 verificationTimestamp={verificationData?.verificationTimestamp || null}
                 timeline={timelineData}
+              />
+            );
+          })()}
+
+          {/* Bulk Preview Modal */}
+          {showBulkPreviewModal && bulkPreviewSubmissions.length > 0 && (() => {
+            // Calculate total cost
+            const totalCost = bulkPreviewSubmissions.reduce((sum, sub) => sum + (sub.cost || 0), 0);
+            
+            // Get unique CRs (group by CR number and date)
+            const crGroups = {};
+            bulkPreviewSubmissions.forEach((sub) => {
+              const crKey = `${sub.crNumber || 'no-cr'}_${sub.crDate || 'no-date'}`;
+              if (!crGroups[crKey]) {
+                crGroups[crKey] = {
+                  crNumber: sub.crNumber || "",
+                  crDate: sub.crDate || "",
+                  submissions: []
+                };
+              }
+              crGroups[crKey].submissions.push(sub);
+            });
+            
+            // Get selection data from first submission (assuming all have same selection)
+            const firstSub = bulkPreviewSubmissions[0];
+            const selectionData = firstSub.selection ? {
+              year: firstSub.selection.year || "",
+              installment: firstSub.selection.installment || "",
+              grantType: firstSub.selection.grantType || "",
+              program: firstSub.selection.program || ""
+            } : {
+              year: firstSub.year || "",
+              installment: firstSub.installment || "",
+              grantType: firstSub.grantType || "",
+              program: firstSub.program || ""
+            };
+
+            // Build timeline data for bulk preview
+            const timelineData = {
+              forwardedFrom: firstSub.forwardedBy || firstSub.forwardedDate ? {
+                name: firstSub.forwardedBy || "Engineer",
+                timestamp: firstSub.forwardedDate || null
+              } : null,
+              verifiedBy: firstSub.verifiedBy ? {
+                name: firstSub.verifiedBy.name || "Commissioner",
+                timestamp: firstSub.verifiedBy.timestamp || null
+              } : null,
+              eephVerifiedBy: null, // Will be added when checkbox is checked
+              forwardingTo: null
+            };
+
+            return (
+              <PreviewModal
+                isOpen={showBulkPreviewModal}
+                onClose={() => {
+                  setShowBulkPreviewModal(false);
+                  setBulkPreviewSubmissions([]);
+                }}
+                onConfirm={(verificationData) => {
+                  // Store verification data
+                  setVerificationData(verificationData);
+                  
+                  // Close preview
+                  setShowBulkPreviewModal(false);
+                  
+                  // Proceed with approval and show forward modal
+                  const count = selectedItems.length;
+                  
+                  // Approve the items
+                  setForwardedSubmissions((prev) => {
+                    return prev.map((f) => {
+                      if (selectedItems.includes(f.id)) {
+                        return { 
+                          ...f, 
+                          status: "EEPH Approved", 
+                          remarks: bulkApproveRemarks || "",
+                          verifiedBy: verificationData ? {
+                            name: verificationData.verifiedPersonName,
+                            designation: verificationData.verifiedPersonDesignation,
+                            timestamp: verificationData.verificationTimestamp
+                          } : null,
+                          // Preserve files
+                          workImage: f.workImage,
+                          detailedReport: f.detailedReport,
+                          committeeReport: f.committeeReport,
+                          councilResolution: f.councilResolution,
+                        };
+                      }
+                      return f;
+                    });
+                  });
+
+                  // Store the approved item IDs for forwarding
+                  setBulkApprovedItems([...selectedItems]);
+                  setSelectedItems([]);
+                  
+                  // Clear preview data
+                  setBulkPreviewSubmissions([]);
+                  
+                  // Open forwarding modal
+                  setShowBulkForwardModal(true);
+                  setForwardConfirmed(false);
+                }}
+                selection={selectionData}
+                crStatus={Object.keys(crGroups).length > 0 ? "CR" : ""}
+                crNumber={Object.keys(crGroups).length === 1 ? Object.values(crGroups)[0].crNumber : ""}
+                crDate={Object.keys(crGroups).length === 1 ? Object.values(crGroups)[0].crDate : ""}
+                numberOfWorks={bulkPreviewSubmissions.length.toString()}
+                submissions={bulkPreviewSubmissions}
+                totalSubmittedCost={totalCost}
+                committeeFile={null}
+                councilFile={null}
+                isEditing={false}
+                showAlert={showAlert}
+                user={user}
+                ulbName={user?.ulb || "Vijayawada"}
+                verifiedPersonName=""
+                verifiedPersonDesignation=""
+                verificationWord=""
+                verificationTimestamp={null}
+                timeline={timelineData}
+                isBulkPreview={true}
+                crGroups={Object.keys(crGroups).length > 1 ? Object.values(crGroups) : null}
               />
             );
           })()}

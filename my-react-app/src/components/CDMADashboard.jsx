@@ -229,6 +229,8 @@ export default function CDMADashboard({
   const [bulkRejectRemarks, setBulkRejectRemarks] = useState("");
   const [showBulkApproveModal, setShowBulkApproveModal] = useState(false);
   const [bulkApproveRemarks, setBulkApproveRemarks] = useState("");
+  const [showBulkPreviewModal, setShowBulkPreviewModal] = useState(false);
+  const [bulkPreviewSubmissions, setBulkPreviewSubmissions] = useState([]);
 
   // Menu state
   const [selectedMenuItem, setSelectedMenuItem] = useState("dashboard");
@@ -773,8 +775,19 @@ export default function CDMADashboard({
       showAlert("Please select at least one work to approve.", "error");
       return;
     }
-    setShowBulkApproveModal(true);
-    setBulkApproveRemarks("");
+
+    // Get all selected submissions and show preview first
+    const selectedSubmissions = forwardedSubmissions.filter((f) => 
+      selectedItems.includes(f.id)
+    );
+    
+    if (selectedSubmissions.length === 0) {
+      showAlert("Selected items not found.", "error");
+      return;
+    }
+
+    setBulkPreviewSubmissions(selectedSubmissions);
+    setShowBulkPreviewModal(true);
   };
 
   const confirmBulkApprove = () => {
@@ -1741,6 +1754,161 @@ export default function CDMADashboard({
                 }}
                 showActions={false}
                 isEditing={false}
+              />
+            );
+          })()}
+
+          {/* Bulk Preview Modal */}
+          {showBulkPreviewModal && bulkPreviewSubmissions.length > 0 && (() => {
+            // Calculate total cost
+            const totalCost = bulkPreviewSubmissions.reduce((sum, sub) => sum + (sub.cost || 0), 0);
+            
+            // Get unique CRs (group by CR number and date)
+            const crGroups = {};
+            bulkPreviewSubmissions.forEach((sub) => {
+              const crKey = `${sub.crNumber || 'no-cr'}_${sub.crDate || 'no-date'}`;
+              if (!crGroups[crKey]) {
+                crGroups[crKey] = {
+                  crNumber: sub.crNumber || "",
+                  crDate: sub.crDate || "",
+                  submissions: []
+                };
+              }
+              crGroups[crKey].submissions.push(sub);
+            });
+            
+            // Get selection data from first submission
+            const firstSub = bulkPreviewSubmissions[0];
+            const selectionData = firstSub.selection ? {
+              year: firstSub.selection.year || "",
+              installment: firstSub.selection.installment || "",
+              grantType: firstSub.selection.grantType || "",
+              program: firstSub.selection.program || ""
+            } : {
+              year: firstSub.year || "",
+              installment: firstSub.installment || "",
+              grantType: firstSub.grantType || "",
+              program: firstSub.program || ""
+            };
+
+            // Build timeline data for bulk preview
+            // Check all submissions to find verification data (some might have it, others might not)
+            let sephData = null;
+            let encphData = null;
+            let eephData = null;
+            let commissionerData = null;
+            
+            for (const sub of bulkPreviewSubmissions) {
+              // Find SEPH verification
+              if (!sephData && sub.sephVerifiedBy) {
+                sephData = {
+                  name: sub.sephVerifiedBy.name || sub.sephVerifiedBy.designation || "SEPH",
+                  timestamp: sub.sephVerifiedBy.timestamp || null
+                };
+              }
+              
+              // Find ENCPH verification
+              if (!encphData && sub.encphVerifiedBy) {
+                encphData = {
+                  name: sub.encphVerifiedBy.name || sub.encphVerifiedBy.designation || "ENCPH",
+                  timestamp: sub.encphVerifiedBy.timestamp || null
+                };
+              }
+              
+              // Find EEPH verification
+              if (!eephData && sub.eephVerifiedBy) {
+                eephData = {
+                  name: sub.eephVerifiedBy.name || sub.eephVerifiedBy.designation || "EEPH",
+                  timestamp: sub.eephVerifiedBy.timestamp || null
+                };
+              }
+              
+              // Find Commissioner verification
+              if (!commissionerData && sub.commissionerVerifiedBy) {
+                commissionerData = {
+                  name: sub.commissionerVerifiedBy.name || sub.commissionerVerifiedBy.designation || "Commissioner",
+                  timestamp: sub.commissionerVerifiedBy.timestamp || null
+                };
+              }
+              
+              // Also check verifiedBy as fallback for Commissioner
+              if (!commissionerData && sub.verifiedBy && 
+                  (!sub.verifiedBy.designation || !sub.verifiedBy.designation.toLowerCase().includes("eeph") && 
+                   !sub.verifiedBy.designation.toLowerCase().includes("seph") && 
+                   !sub.verifiedBy.designation.toLowerCase().includes("encph"))) {
+                commissionerData = {
+                  name: sub.verifiedBy.name || sub.verifiedBy.designation || "Commissioner",
+                  timestamp: sub.verifiedBy.timestamp || null
+                };
+              }
+            }
+            
+            const timelineData = {
+              forwardedFrom: firstSub.forwardedBy || firstSub.forwardedDate ? {
+                name: firstSub.forwardedBy || "Engineer",
+                timestamp: firstSub.forwardedDate || null
+              } : null,
+              verifiedBy: commissionerData,
+              eephVerifiedBy: eephData,
+              sephVerifiedBy: sephData,
+              encphVerifiedBy: encphData,
+              cdmaVerifiedBy: null, // Will be added when checkbox is checked
+              forwardingTo: null
+            };
+
+            return (
+              <PreviewModal
+                isOpen={showBulkPreviewModal}
+                onClose={() => {
+                  setShowBulkPreviewModal(false);
+                  setBulkPreviewSubmissions([]);
+                }}
+                onConfirm={(verificationData) => {
+                  // Store verification data
+                  setVerificationData(verificationData);
+                  
+                  // Close preview
+                  setShowBulkPreviewModal(false);
+                  
+                  // Proceed with approval
+                  const count = selectedItems.length;
+                  
+                  // Approve the items
+                  setForwardedSubmissions((prev) =>
+                    prev.map((f) =>
+                      selectedItems.includes(f.id) && !isActionDisabled(f.status)
+                        ? { ...f, status: "CDMA Approved", remarks: bulkApproveRemarks || "" }
+                        : f
+                    )
+                  );
+                  
+                  setShowBulkApproveModal(false);
+                  setSelectedItems([]);
+                  setBulkPreviewSubmissions([]);
+                  setBulkApproveRemarks("");
+                  setApproveBanner(`${count} work(s) approved successfully by CDMA.`);
+                  setTimeout(() => setApproveBanner(""), 2000);
+                }}
+                selection={selectionData}
+                crStatus={Object.keys(crGroups).length > 0 ? "CR" : ""}
+                crNumber={Object.keys(crGroups).length === 1 ? Object.values(crGroups)[0].crNumber : ""}
+                crDate={Object.keys(crGroups).length === 1 ? Object.values(crGroups)[0].crDate : ""}
+                numberOfWorks={bulkPreviewSubmissions.length.toString()}
+                submissions={bulkPreviewSubmissions}
+                totalSubmittedCost={totalCost}
+                committeeFile={null}
+                councilFile={null}
+                isEditing={false}
+                showAlert={showAlert}
+                user={user}
+                ulbName={user?.ulb || "Vijayawada"}
+                verifiedPersonName=""
+                verifiedPersonDesignation=""
+                verificationWord=""
+                verificationTimestamp={null}
+                timeline={timelineData}
+                isBulkPreview={true}
+                crGroups={Object.keys(crGroups).length > 1 ? Object.values(crGroups) : null}
               />
             );
           })()}

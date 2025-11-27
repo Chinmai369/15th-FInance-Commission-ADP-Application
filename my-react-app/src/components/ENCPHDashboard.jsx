@@ -234,6 +234,12 @@ export default function ENCPHDashboard({
   const [bulkRejectRemarks, setBulkRejectRemarks] = useState("");
   const [showBulkApproveModal, setShowBulkApproveModal] = useState(false);
   const [bulkApproveRemarks, setBulkApproveRemarks] = useState("");
+  const [showBulkPreviewModal, setShowBulkPreviewModal] = useState(false);
+  const [bulkPreviewSubmissions, setBulkPreviewSubmissions] = useState([]);
+  const [showBulkForwardModal, setShowBulkForwardModal] = useState(false);
+  const [bulkApprovedItems, setBulkApprovedItems] = useState([]);
+  const [forwardRemarks, setForwardRemarks] = useState("");
+  const [forwardConfirmed, setForwardConfirmed] = useState(false);
 
   // Filter state
   const [filters, setFilters] = useState({
@@ -789,9 +795,18 @@ export default function ENCPHDashboard({
       return;
     }
 
-    // Open approval remarks modal
-    setShowBulkApproveModal(true);
-    setBulkApproveRemarks("");
+    // Get all selected submissions and show preview first
+    const selectedSubmissions = forwardedSubmissions.filter((f) => 
+      selectedItems.includes(f.id)
+    );
+    
+    if (selectedSubmissions.length === 0) {
+      showAlert("Selected items not found.", "error");
+      return;
+    }
+
+    setBulkPreviewSubmissions(selectedSubmissions);
+    setShowBulkPreviewModal(true);
   };
 
   const confirmBulkApprove = () => {
@@ -834,6 +849,69 @@ export default function ENCPHDashboard({
     
     // Show alert message (auto-dismisses after 3 seconds)
     showAlert("Task is forwarded successfully", "success");
+  };
+
+  const forwardBulkApprovedToCDMA = () => {
+    if (bulkApprovedItems.length === 0) {
+      showAlert("No items to forward", "error");
+      return;
+    }
+    if (!forwardConfirmed) {
+      showAlert("Please check the confirmation checkbox before forwarding", "error");
+      return;
+    }
+
+    const count = bulkApprovedItems.length;
+
+    // Forward approved items to CDMA
+    setForwardedSubmissions((prev) => {
+      return prev.map((f) => {
+        if (bulkApprovedItems.includes(f.id)) {
+          const currentSub = prev.find((sub) => sub.id === f.id);
+          return {
+            ...f,
+            status: "Forwarded to CDMA",
+            forwardedTo: {
+              department: "Administration",
+              section: "CDMA",
+              remarks: forwardRemarks || bulkApproveRemarks || "",
+            },
+            remarks: forwardRemarks || bulkApproveRemarks || "",
+            verifiedBy: verificationData ? {
+              name: verificationData.verifiedPersonName,
+              designation: verificationData.verifiedPersonDesignation,
+              timestamp: verificationData.verificationTimestamp
+            } : null,
+            // Set encphVerifiedBy when ENCPH approves
+            encphVerifiedBy: verificationData ? {
+              name: verificationData.verifiedPersonName,
+              designation: verificationData.verifiedPersonDesignation,
+              timestamp: verificationData.verificationTimestamp
+            } : null,
+            // Preserve all previous verifications
+            commissionerVerifiedBy: currentSub?.commissionerVerifiedBy || f.commissionerVerifiedBy,
+            eephVerifiedBy: currentSub?.eephVerifiedBy || f.eephVerifiedBy,
+            sephVerifiedBy: currentSub?.sephVerifiedBy || f.sephVerifiedBy,
+            // Preserve files
+            workImage: f.workImage || currentSub?.workImage || null,
+            detailedReport: f.detailedReport || currentSub?.detailedReport || null,
+            committeeReport: f.committeeReport || currentSub?.committeeReport || null,
+            councilResolution: f.councilResolution || currentSub?.councilResolution || null,
+          };
+        }
+        return f;
+      });
+    });
+
+    // Close modal and clear state
+    setShowBulkForwardModal(false);
+    setBulkApprovedItems([]);
+    setForwardRemarks("");
+    setForwardConfirmed(false);
+    setBulkApproveRemarks("");
+    
+    // Show alert message (auto-dismisses after 3 seconds)
+    showAlert(`${count} work(s) forwarded to CDMA successfully`, "success");
   };
 
   const handleBulkReject = () => {
@@ -1884,6 +1962,111 @@ export default function ENCPHDashboard({
             );
           })()}
 
+          {/* Bulk Preview Modal */}
+          {showBulkPreviewModal && bulkPreviewSubmissions.length > 0 && (() => {
+            // Calculate total cost
+            const totalCost = bulkPreviewSubmissions.reduce((sum, sub) => sum + (sub.cost || 0), 0);
+            
+            // Get unique CRs (group by CR number and date)
+            const crGroups = {};
+            bulkPreviewSubmissions.forEach((sub) => {
+              const crKey = `${sub.crNumber || 'no-cr'}_${sub.crDate || 'no-date'}`;
+              if (!crGroups[crKey]) {
+                crGroups[crKey] = {
+                  crNumber: sub.crNumber || "",
+                  crDate: sub.crDate || "",
+                  submissions: []
+                };
+              }
+              crGroups[crKey].submissions.push(sub);
+            });
+            
+            // Get selection data from first submission
+            const firstSub = bulkPreviewSubmissions[0];
+            const selectionData = firstSub.selection ? {
+              year: firstSub.selection.year || "",
+              installment: firstSub.selection.installment || "",
+              grantType: firstSub.selection.grantType || "",
+              program: firstSub.selection.program || ""
+            } : {
+              year: firstSub.year || "",
+              installment: firstSub.installment || "",
+              grantType: firstSub.grantType || "",
+              program: firstSub.program || ""
+            };
+
+            // Build timeline data for bulk preview
+            const timelineData = {
+              forwardedFrom: firstSub.forwardedBy || firstSub.forwardedDate ? {
+                name: firstSub.forwardedBy || "Engineer",
+                timestamp: firstSub.forwardedDate || null
+              } : null,
+              verifiedBy: firstSub.verifiedBy ? {
+                name: firstSub.verifiedBy.name || "Commissioner",
+                timestamp: firstSub.verifiedBy.timestamp || null
+              } : null,
+              eephVerifiedBy: firstSub.eephVerifiedBy ? {
+                name: firstSub.eephVerifiedBy.name || "EEPH",
+                timestamp: firstSub.eephVerifiedBy.timestamp || null
+              } : null,
+              sephVerifiedBy: firstSub.sephVerifiedBy ? {
+                name: firstSub.sephVerifiedBy.name || "SEPH",
+                timestamp: firstSub.sephVerifiedBy.timestamp || null
+              } : null,
+              encphVerifiedBy: null, // Will be added when checkbox is checked
+              forwardingTo: null
+            };
+
+            return (
+              <PreviewModal
+                isOpen={showBulkPreviewModal}
+                onClose={() => {
+                  setShowBulkPreviewModal(false);
+                  setBulkPreviewSubmissions([]);
+                }}
+                onConfirm={(verificationData) => {
+                  // Store verification data
+                  setVerificationData(verificationData);
+                  
+                  // Close preview
+                  setShowBulkPreviewModal(false);
+                  
+                  // Store the approved item IDs for forwarding
+                  setBulkApprovedItems([...selectedItems]);
+                  setSelectedItems([]);
+                  
+                  // Clear preview data
+                  setBulkPreviewSubmissions([]);
+                  
+                  // Open forward modal
+                  setShowBulkForwardModal(true);
+                  setForwardRemarks("");
+                  setForwardConfirmed(false);
+                }}
+                selection={selectionData}
+                crStatus={Object.keys(crGroups).length > 0 ? "CR" : ""}
+                crNumber={Object.keys(crGroups).length === 1 ? Object.values(crGroups)[0].crNumber : ""}
+                crDate={Object.keys(crGroups).length === 1 ? Object.values(crGroups)[0].crDate : ""}
+                numberOfWorks={bulkPreviewSubmissions.length.toString()}
+                submissions={bulkPreviewSubmissions}
+                totalSubmittedCost={totalCost}
+                committeeFile={null}
+                councilFile={null}
+                isEditing={false}
+                showAlert={showAlert}
+                user={user}
+                ulbName={user?.ulb || "Vijayawada"}
+                verifiedPersonName=""
+                verifiedPersonDesignation=""
+                verificationWord=""
+                verificationTimestamp={null}
+                timeline={timelineData}
+                isBulkPreview={true}
+                crGroups={Object.keys(crGroups).length > 1 ? Object.values(crGroups) : null}
+              />
+            );
+          })()}
+
           {showApprovePanel && previewSubmission && (
             <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4">
               <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full p-6 overflow-auto max-h-[90vh]">
@@ -2444,6 +2627,85 @@ export default function ENCPHDashboard({
                     className="px-5 py-2 bg-red-600 text-white rounded hover:bg-red-700"
                   >
                     Submit Rejection
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Bulk Forward Modal */}
+          {showBulkForwardModal && (
+            <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4">
+              <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full p-6 overflow-auto max-h-[90vh]">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-semibold text-lg">Forward {bulkApprovedItems.length} Approved Work(s) to CDMA</h4>
+                  <button
+                    onClick={() => {
+                      setShowBulkForwardModal(false);
+                      setBulkApprovedItems([]);
+                      setForwardRemarks("");
+                      setForwardConfirmed(false);
+                    }}
+                    className="px-3 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">You are about to forward {bulkApprovedItems.length} approved work(s) to CDMA.</p>
+                  <div className="bg-blue-50 border border-blue-200 rounded p-3 mt-2">
+                    <p className="text-sm text-blue-800">
+                      <strong>Department:</strong> Administration<br />
+                      <strong>Section:</strong> CDMA
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm text-gray-600 font-medium">Forward Remarks (Optional)</label>
+                    <textarea
+                      className="w-full border p-3 rounded mt-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      rows={4}
+                      value={forwardRemarks}
+                      onChange={(e) => setForwardRemarks(e.target.value)}
+                      placeholder="Add any additional remarks for forwarding..."
+                    />
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="forwardConfirm"
+                      checked={forwardConfirmed}
+                      onChange={(e) => setForwardConfirmed(e.target.checked)}
+                      className="mr-2 w-4 h-4"
+                    />
+                    <label htmlFor="forwardConfirm" className="text-sm text-gray-700">
+                      I confirm that I want to forward these {bulkApprovedItems.length} work(s) to CDMA
+                    </label>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowBulkForwardModal(false);
+                      setBulkApprovedItems([]);
+                      setForwardRemarks("");
+                      setForwardConfirmed(false);
+                    }}
+                    className="px-5 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={forwardBulkApprovedToCDMA}
+                    disabled={!forwardConfirmed}
+                    className={`px-5 py-2 rounded ${
+                      !forwardConfirmed
+                        ? "bg-gray-400 cursor-not-allowed text-gray-600"
+                        : "bg-green-600 hover:bg-green-700 text-white"
+                    }`}
+                  >
+                    Forward to CDMA
                   </button>
                 </div>
               </div>
