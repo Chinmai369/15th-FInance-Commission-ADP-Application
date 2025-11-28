@@ -16,12 +16,16 @@ import {
   getStorageInfo,
   clearAllWorks
 } from "./services/storage";
+import {
+  getSubmissions,
+  saveBulkSubmissions
+} from "./services/submissionsApi";
 import "./App.css";
 
 function App() {
   const [forwardedSubmissions, setForwardedSubmissions] = useState([]);
   const [user, setUser] = useState(null);
-  const [storageType, setStorageType] = useState('indexeddb'); // 'indexeddb' or 'localstorage'
+  const [storageType, setStorageType] = useState('neon'); // 'neon', 'indexeddb', or 'localstorage'
   
   // Save forwardedSubmissions to storage whenever it changes
   useEffect(() => {
@@ -48,7 +52,44 @@ function App() {
       };
     });
 
-    // Save to IndexedDB (preferred) or localStorage (fallback)
+    // Save to Neon database if authenticated (primary storage)
+    if (isAuthenticated() && storageType === 'neon') {
+      saveBulkSubmissions(serializable).then(success => {
+        if (success) {
+          console.log("✅ App: Saved to Neon database:", forwardedSubmissions.length, "items");
+        } else {
+          console.warn("⚠️ App: Failed to save to Neon, falling back to local storage");
+          // Fallback to IndexedDB
+          saveToIndexedDB(serializable).catch(error => {
+            console.error("❌ App: Error saving to IndexedDB:", error);
+            // Final fallback to localStorage
+            try {
+              const jsonString = JSON.stringify(serializable);
+              localStorage.setItem('forwardedSubmissions', jsonString);
+              setStorageType('localstorage');
+            } catch (e) {
+              console.error("❌ App: Error saving to localStorage:", e);
+            }
+          });
+        }
+      }).catch(error => {
+        console.error("❌ App: Error saving to Neon database:", error);
+        // Fallback to IndexedDB
+        saveToIndexedDB(serializable).catch(e => {
+          console.error("❌ App: Error saving to IndexedDB:", e);
+          // Final fallback to localStorage
+          try {
+            const jsonString = JSON.stringify(serializable);
+            localStorage.setItem('forwardedSubmissions', jsonString);
+            setStorageType('localstorage');
+          } catch (err) {
+            console.error("❌ App: Error saving to localStorage:", err);
+          }
+        });
+      });
+    }
+    
+    // Also save to IndexedDB as backup (if not using Neon)
     if (storageType === 'indexeddb') {
       saveToIndexedDB(serializable).catch(error => {
         console.error("❌ App: Error saving to IndexedDB, falling back to localStorage:", error);
@@ -71,7 +112,7 @@ function App() {
           }
         }
       });
-    } else {
+    } else if (storageType === 'localstorage') {
       // Save to localStorage
       try {
         const jsonString = JSON.stringify(serializable);
@@ -145,7 +186,36 @@ function App() {
         }
       }
       
-      // Try to initialize IndexedDB and load data
+      // Try to load from Neon database first (if authenticated)
+      if (isAuthenticated()) {
+        try {
+          console.log("🌐 App: Attempting to load from Neon database...");
+          const neonData = await getSubmissions();
+          
+          if (neonData && neonData.length > 0) {
+            console.log("✅ App: Loaded from Neon database:", neonData.length, "items");
+            setForwardedSubmissions(neonData);
+            setStorageType('neon');
+            
+            // Also sync to IndexedDB as backup
+            try {
+              await initDB();
+              await saveToIndexedDB(neonData);
+              console.log("✅ App: Synced Neon data to IndexedDB as backup");
+            } catch (e) {
+              console.warn("⚠️ App: Could not sync to IndexedDB:", e);
+            }
+            
+            return; // Successfully loaded from Neon, exit
+          } else {
+            console.log("📦 App: No data in Neon database, checking local storage...");
+          }
+        } catch (error) {
+          console.warn("⚠️ App: Error loading from Neon database, falling back to local storage:", error.message);
+        }
+      }
+      
+      // Fallback to IndexedDB
       try {
         await initDB();
         const indexedData = await loadFromIndexedDB();
@@ -154,16 +224,38 @@ function App() {
           console.log("✅ App: Loaded from IndexedDB:", indexedData.length, "items");
           setForwardedSubmissions(indexedData);
           setStorageType('indexeddb');
+          
+          // Try to sync to Neon if authenticated
+          if (isAuthenticated()) {
+            try {
+              await saveBulkSubmissions(indexedData);
+              console.log("✅ App: Synced IndexedDB data to Neon database");
+              setStorageType('neon');
+            } catch (e) {
+              console.warn("⚠️ App: Could not sync to Neon:", e);
+            }
+          }
         } else {
           // Check localStorage and migrate if data exists
           const stored = localStorage.getItem('forwardedSubmissions');
           if (stored) {
             const parsed = JSON.parse(stored);
             if (parsed.length > 0) {
-              console.log("📦 App: Found data in localStorage, migrating to IndexedDB:", parsed.length);
+              console.log("📦 App: Found data in localStorage, migrating:", parsed.length);
               await migrateFromLocalStorage();
               setForwardedSubmissions(parsed);
               setStorageType('indexeddb');
+              
+              // Try to sync to Neon if authenticated
+              if (isAuthenticated()) {
+                try {
+                  await saveBulkSubmissions(parsed);
+                  console.log("✅ App: Synced localStorage data to Neon database");
+                  setStorageType('neon');
+                } catch (e) {
+                  console.warn("⚠️ App: Could not sync to Neon:", e);
+                }
+              }
             } else {
               console.log("📦 App: No data to load");
             }

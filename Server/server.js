@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import jwt from "jsonwebtoken";
+import sql, { testConnection } from "./db.js";
 
 const app = express();
 
@@ -743,6 +744,274 @@ app.post("/api/logout", (req, res, next) => {
   });
 });
 
+// ============================================
+// SUBMISSIONS API ENDPOINTS (Neon Database)
+// ============================================
+
+// Initialize database connection on server start
+let dbConnected = false;
+testConnection().then(connected => {
+  dbConnected = connected;
+  if (connected) {
+    // Initialize database schema if needed
+    initializeDatabase();
+  }
+});
+
+// Initialize database schema
+const initializeDatabase = async () => {
+  try {
+    // Check if submissions table exists, create if not
+    await sql`
+      CREATE TABLE IF NOT EXISTS submissions (
+        id VARCHAR(255) PRIMARY KEY,
+        data JSONB NOT NULL,
+        status VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+    
+    // Create indexes
+    await sql`CREATE INDEX IF NOT EXISTS idx_submissions_status ON submissions(status)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_submissions_created_at ON submissions(created_at DESC)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_submissions_data ON submissions USING GIN (data)`;
+    
+    console.log('✅ Database schema initialized');
+  } catch (error) {
+    console.error('❌ Error initializing database schema:', error.message);
+  }
+};
+
+// Get all submissions
+app.get("/api/submissions", authenticateToken, async (req, res) => {
+  try {
+    if (!dbConnected) {
+      return res.status(503).json({
+        success: false,
+        message: "Database not connected"
+      });
+    }
+
+    const result = await sql`
+      SELECT id, data, status, created_at, updated_at
+      FROM submissions
+      ORDER BY created_at DESC
+    `;
+
+    const submissions = result.map(row => ({
+      ...row.data,
+      id: row.id,
+      status: row.status || row.data.status,
+      created_at: row.created_at,
+      updated_at: row.updated_at
+    }));
+
+    console.log(`✅ Retrieved ${submissions.length} submissions from database`);
+    
+    res.json({
+      success: true,
+      submissions,
+      count: submissions.length
+    });
+  } catch (error) {
+    console.error("❌ Error fetching submissions:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching submissions",
+      error: process.env.NODE_ENV !== 'production' ? error.message : undefined
+    });
+  }
+});
+
+// Save/Update a single submission
+app.post("/api/submissions", authenticateToken, async (req, res) => {
+  try {
+    if (!dbConnected) {
+      return res.status(503).json({
+        success: false,
+        message: "Database not connected"
+      });
+    }
+
+    const { submission } = req.body;
+
+    if (!submission || !submission.id) {
+      return res.status(400).json({
+        success: false,
+        message: "Submission data with id is required"
+      });
+    }
+
+    const submissionId = submission.id;
+    const status = submission.status || "Pending Review";
+
+    // Store entire submission as JSONB
+    await sql`
+      INSERT INTO submissions (id, data, status)
+      VALUES (${submissionId}, ${JSON.stringify(submission)}::jsonb, ${status})
+      ON CONFLICT (id) 
+      DO UPDATE SET 
+        data = ${JSON.stringify(submission)}::jsonb,
+        status = ${status},
+        updated_at = CURRENT_TIMESTAMP
+    `;
+
+    console.log(`✅ Saved submission ${submissionId} to database`);
+    
+    res.json({
+      success: true,
+      message: "Submission saved successfully",
+      id: submissionId
+    });
+  } catch (error) {
+    console.error("❌ Error saving submission:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error saving submission",
+      error: process.env.NODE_ENV !== 'production' ? error.message : undefined
+    });
+  }
+});
+
+// Save multiple submissions (bulk)
+app.post("/api/submissions/bulk", authenticateToken, async (req, res) => {
+  try {
+    if (!dbConnected) {
+      return res.status(503).json({
+        success: false,
+        message: "Database not connected"
+      });
+    }
+
+    const { submissions } = req.body;
+
+    if (!Array.isArray(submissions) || submissions.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Array of submissions is required"
+      });
+    }
+
+    // Use transaction for bulk insert
+    const values = submissions.map(sub => ({
+      id: sub.id,
+      data: JSON.stringify(sub),
+      status: sub.status || "Pending Review"
+    }));
+
+    // Insert all submissions
+    for (const value of values) {
+      await sql`
+        INSERT INTO submissions (id, data, status)
+        VALUES (${value.id}, ${value.data}::jsonb, ${value.status})
+        ON CONFLICT (id) 
+        DO UPDATE SET 
+          data = ${value.data}::jsonb,
+          status = ${value.status},
+          updated_at = CURRENT_TIMESTAMP
+      `;
+    }
+
+    console.log(`✅ Saved ${submissions.length} submissions to database`);
+    
+    res.json({
+      success: true,
+      message: `${submissions.length} submissions saved successfully`,
+      count: submissions.length
+    });
+  } catch (error) {
+    console.error("❌ Error saving bulk submissions:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error saving submissions",
+      error: process.env.NODE_ENV !== 'production' ? error.message : undefined
+    });
+  }
+});
+
+// Delete a submission
+app.delete("/api/submissions/:id", authenticateToken, async (req, res) => {
+  try {
+    if (!dbConnected) {
+      return res.status(503).json({
+        success: false,
+        message: "Database not connected"
+      });
+    }
+
+    const { id } = req.params;
+
+    const result = await sql`
+      DELETE FROM submissions
+      WHERE id = ${id}
+    `;
+
+    console.log(`✅ Deleted submission ${id} from database`);
+    
+    res.json({
+      success: true,
+      message: "Submission deleted successfully"
+    });
+  } catch (error) {
+    console.error("❌ Error deleting submission:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting submission",
+      error: process.env.NODE_ENV !== 'production' ? error.message : undefined
+    });
+  }
+});
+
+// Get submission by ID
+app.get("/api/submissions/:id", authenticateToken, async (req, res) => {
+  try {
+    if (!dbConnected) {
+      return res.status(503).json({
+        success: false,
+        message: "Database not connected"
+      });
+    }
+
+    const { id } = req.params;
+
+    const result = await sql`
+      SELECT id, data, status, created_at, updated_at
+      FROM submissions
+      WHERE id = ${id}
+      LIMIT 1
+    `;
+
+    if (result.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Submission not found"
+      });
+    }
+
+    const row = result[0];
+    const submission = {
+      ...row.data,
+      id: row.id,
+      status: row.status || row.data.status,
+      created_at: row.created_at,
+      updated_at: row.updated_at
+    };
+
+    res.json({
+      success: true,
+      submission
+    });
+  } catch (error) {
+    console.error("❌ Error fetching submission:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching submission",
+      error: process.env.NODE_ENV !== 'production' ? error.message : undefined
+    });
+  }
+});
+
 app.listen(5000, () => {
   console.log("\n");
   console.log("═══════════════════════════════════════════════════");
@@ -753,6 +1022,11 @@ app.listen(5000, () => {
   console.log("🚪 Logout endpoint: POST /api/logout");
   console.log("📱 Send OTP endpoint: POST /api/send-otp");
   console.log("🔑 Verify OTP endpoint: POST /api/verify-otp");
+  console.log("📦 Get submissions: GET /api/submissions");
+  console.log("💾 Save submission: POST /api/submissions");
+  console.log("💾 Save bulk submissions: POST /api/submissions/bulk");
+  console.log("🔍 Get submission by ID: GET /api/submissions/:id");
+  console.log("🗑️  Delete submission: DELETE /api/submissions/:id");
   console.log("═══════════════════════════════════════════════════");
   console.log("👤 ADMIN STATIC MOBILE NUMBER: 9999999999");
   console.log("   - Use this mobile number to login to Admin Dashboard");
