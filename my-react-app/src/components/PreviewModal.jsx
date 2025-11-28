@@ -461,7 +461,7 @@ const PreviewModal = ({
           {(!isBulkPreview || !crGroups || crGroups.length === 1) && (
             <div className="mb-4">
               <h4 className="text-lg font-semibold text-gray-800 mb-3 pb-2 border-b border-gray-300">Attached Documents</h4>
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 {/* Committee Report */}
                 {committeeFile && (
                   <div className="p-3 border border-gray-300 rounded">

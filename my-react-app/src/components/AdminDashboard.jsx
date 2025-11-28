@@ -1630,26 +1630,26 @@ export default function AdminDashboard({
                     <div className="relative">
                       {latlong && formatLatlongUrl(latlong) ? (
                         <div className="relative">
-                          <div 
+                        <div 
                             className="w-full border border-gray-300 rounded-md p-3 bg-white min-h-[3rem] flex items-center cursor-pointer hover:bg-blue-50 transition-colors pr-12"
-                            onClick={() => window.open(formatLatlongUrl(latlong), '_blank', 'noopener,noreferrer')}
+                          onClick={() => window.open(formatLatlongUrl(latlong), '_blank', 'noopener,noreferrer')}
+                        >
+                          <a 
+                            href={formatLatlongUrl(latlong)}
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="text-blue-600 hover:underline flex-1 text-sm"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <a 
-                              href={formatLatlongUrl(latlong)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-blue-600 hover:underline flex-1 text-sm"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {latlong}
-                            </a>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setLatlong(""); }}
+                            {latlong}
+                          </a>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setLatlong(""); }}
                               disabled={isFormDisabled}
                               className="text-xs text-gray-500 hover:text-gray-700 ml-2 px-2 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                              title="Clear"
-                            >
-                              ✕
+                            title="Clear"
+                          >
+                            ✕
                             </button>
                           </div>
                           <button
@@ -1671,13 +1671,13 @@ export default function AdminDashboard({
                         </div>
                       ) : (
                         <div className="relative">
-                          <input 
-                            value={latlong} 
-                            onChange={(e) => setLatlong(e.target.value)} 
+                        <input 
+                          value={latlong} 
+                          onChange={(e) => setLatlong(e.target.value)} 
                             disabled={isFormDisabled}
                             className="w-full border border-gray-300 rounded-md px-3 py-2 pr-12 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed" 
-                            placeholder="Coordinates or Google Maps URL"
-                          />
+                          placeholder="Coordinates or Google Maps URL"
+                        />
                           <button
                             type="button"
                             onClick={() => {
@@ -1934,14 +1934,14 @@ export default function AdminDashboard({
               <PreviewModal
                 isOpen={showPreviewModal}
                 onClose={() => {
-                  setShowPreviewModal(false);
-                  setIsVerified(false);
+                          setShowPreviewModal(false);
+                          setIsVerified(false);
                   setVerificationConfirmed(false);
                 }}
                 onConfirm={(data) => {
                   // Store verification data
                   setVerificationData(data);
-                  setShowPreviewModal(false);
+                          setShowPreviewModal(false);
                   setVerificationConfirmed(true);
                 }}
                 selection={selection}

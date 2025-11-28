@@ -171,6 +171,7 @@ export const generateCDMAApprovalPDF = async (submission, timeline, ulbName = ""
     return new Promise((resolve) => {
       // Try multiple possible filenames
       const possiblePaths = [
+        '/15th fc.jpg',  // Actual filename in public folder
         '/15th-fc-logo.jpeg',
         '/15th-fc-logo.jpg',
         '/15fc-logo.jpeg',
