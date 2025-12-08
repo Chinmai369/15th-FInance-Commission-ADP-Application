@@ -745,21 +745,34 @@ app.post("/api/logout", (req, res, next) => {
 });
 
 // ============================================
-// SUBMISSIONS API ENDPOINTS (Neon Database)
+// SUBMISSIONS API ENDPOINTS (Neon Database - Optional)
 // ============================================
 
-// Initialize database connection on server start
+// Initialize database connection on server start (optional)
 let dbConnected = false;
-testConnection().then(connected => {
-  dbConnected = connected;
-  if (connected) {
-    // Initialize database schema if needed
-    initializeDatabase();
-  }
-});
+if (sql) {
+  testConnection().then(connected => {
+    dbConnected = connected;
+    if (connected) {
+      // Initialize database schema if needed
+      initializeDatabase();
+    }
+  }).catch(error => {
+    console.warn('⚠️ Database connection test failed (optional):', error.message);
+    console.log('   - Server will continue without database - using local storage only');
+  });
+} else {
+  console.log('ℹ️  Neon database not configured - API endpoints will return 503');
+  console.log('   - Application uses local storage (IndexedDB/localStorage)');
+}
 
 // Initialize database schema
 const initializeDatabase = async () => {
+  if (!sql) {
+    console.log('ℹ️  Skipping database schema initialization (database not configured)');
+    return;
+  }
+  
   try {
     // Check if submissions table exists, create if not
     await sql`
@@ -786,10 +799,10 @@ const initializeDatabase = async () => {
 // Get all submissions
 app.get("/api/submissions", authenticateToken, async (req, res) => {
   try {
-    if (!dbConnected) {
+    if (!sql || !dbConnected) {
       return res.status(503).json({
         success: false,
-        message: "Database not connected"
+        message: "Database not configured. Application uses local storage (IndexedDB/localStorage)."
       });
     }
 
@@ -827,10 +840,10 @@ app.get("/api/submissions", authenticateToken, async (req, res) => {
 // Save/Update a single submission
 app.post("/api/submissions", authenticateToken, async (req, res) => {
   try {
-    if (!dbConnected) {
+    if (!sql || !dbConnected) {
       return res.status(503).json({
         success: false,
-        message: "Database not connected"
+        message: "Database not configured. Application uses local storage (IndexedDB/localStorage)."
       });
     }
 
@@ -877,10 +890,10 @@ app.post("/api/submissions", authenticateToken, async (req, res) => {
 // Save multiple submissions (bulk)
 app.post("/api/submissions/bulk", authenticateToken, async (req, res) => {
   try {
-    if (!dbConnected) {
+    if (!sql || !dbConnected) {
       return res.status(503).json({
         success: false,
-        message: "Database not connected"
+        message: "Database not configured. Application uses local storage (IndexedDB/localStorage)."
       });
     }
 
@@ -933,10 +946,10 @@ app.post("/api/submissions/bulk", authenticateToken, async (req, res) => {
 // Delete a submission
 app.delete("/api/submissions/:id", authenticateToken, async (req, res) => {
   try {
-    if (!dbConnected) {
+    if (!sql || !dbConnected) {
       return res.status(503).json({
         success: false,
-        message: "Database not connected"
+        message: "Database not configured. Application uses local storage (IndexedDB/localStorage)."
       });
     }
 
@@ -966,10 +979,10 @@ app.delete("/api/submissions/:id", authenticateToken, async (req, res) => {
 // Get submission by ID
 app.get("/api/submissions/:id", authenticateToken, async (req, res) => {
   try {
-    if (!dbConnected) {
+    if (!sql || !dbConnected) {
       return res.status(503).json({
         success: false,
-        message: "Database not connected"
+        message: "Database not configured. Application uses local storage (IndexedDB/localStorage)."
       });
     }
 
@@ -1022,11 +1035,14 @@ app.listen(5000, () => {
   console.log("🚪 Logout endpoint: POST /api/logout");
   console.log("📱 Send OTP endpoint: POST /api/send-otp");
   console.log("🔑 Verify OTP endpoint: POST /api/verify-otp");
-  console.log("📦 Get submissions: GET /api/submissions");
-  console.log("💾 Save submission: POST /api/submissions");
-  console.log("💾 Save bulk submissions: POST /api/submissions/bulk");
-  console.log("🔍 Get submission by ID: GET /api/submissions/:id");
-  console.log("🗑️  Delete submission: DELETE /api/submissions/:id");
+  console.log("📦 Get submissions: GET /api/submissions (optional - requires DATABASE_URL)");
+  console.log("💾 Save submission: POST /api/submissions (optional - requires DATABASE_URL)");
+  console.log("💾 Save bulk submissions: POST /api/submissions/bulk (optional - requires DATABASE_URL)");
+  console.log("🔍 Get submission by ID: GET /api/submissions/:id (optional - requires DATABASE_URL)");
+  console.log("🗑️  Delete submission: DELETE /api/submissions/:id (optional - requires DATABASE_URL)");
+  console.log("═══════════════════════════════════════════════════");
+  console.log("💾 Storage: Using local storage (IndexedDB/localStorage)");
+  console.log("   - Neon database is optional. Set DATABASE_URL in .env to enable.");
   console.log("═══════════════════════════════════════════════════");
   console.log("👤 ADMIN STATIC MOBILE NUMBER: 9999999999");
   console.log("   - Use this mobile number to login to Admin Dashboard");

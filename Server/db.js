@@ -1,4 +1,4 @@
-// db.js - Neon PostgreSQL Connection
+// db.js - Neon PostgreSQL Connection (Optional)
 import { neon } from '@neondatabase/serverless';
 import dotenv from 'dotenv';
 
@@ -8,25 +8,37 @@ dotenv.config();
 // Format: postgresql://username:password@host/database?sslmode=require
 const connectionString = process.env.DATABASE_URL;
 
-if (!connectionString) {
-  console.error('❌ DATABASE_URL environment variable is not set!');
-  console.error('Please create a .env file with your Neon database connection string.');
-  console.error('Example: DATABASE_URL=postgresql://username:password@host/database?sslmode=require');
-  process.exit(1);
+let sql = null;
+
+// Only create SQL client if connection string is provided
+if (connectionString) {
+  try {
+    sql = neon(connectionString);
+    console.log('📦 Neon database connection string found (optional - not required for local storage)');
+  } catch (error) {
+    console.warn('⚠️ Warning: Could not initialize Neon client:', error.message);
+    sql = null;
+  }
+} else {
+  console.log('ℹ️  DATABASE_URL not set - using local storage only (IndexedDB/localStorage)');
+  console.log('   - Neon database is optional. To enable, set DATABASE_URL in .env file');
 }
 
-// Create Neon SQL client
-const sql = neon(connectionString);
-
-// Test connection
+// Test connection (optional)
 export const testConnection = async () => {
+  if (!sql) {
+    console.log('ℹ️  Neon database not configured - skipping connection test');
+    return false;
+  }
+  
   try {
     const result = await sql`SELECT NOW() as current_time`;
     console.log('✅ Neon database connection successful');
     console.log('   - Current time:', result[0].current_time);
     return true;
   } catch (error) {
-    console.error('❌ Neon database connection failed:', error.message);
+    console.warn('⚠️ Neon database connection failed:', error.message);
+    console.log('   - Application will continue using local storage only');
     return false;
   }
 };
